@@ -10,6 +10,4 @@ He elegido **TechFlow Solutions** porque considero que el sector de la consultor
 El reto que más me interesa construir es el **Sistema de Automatización de Soporte con Agentes Multi-agente**, ya que requiere coordinar diferentes modelos de IA para resolver problemas reales.
 
 ## Mi idea de Agente de IA
-Mi idea consiste en un **Agente de Onboarding Técnico**. Este agente recibiría como entrada el perfil de un nuevo empleado y los proyectos asignados. Consultaría la documentación técnica interna y produciría una guía personalizada de aprendizaje, respondiendo dudas sobre el stack tecnológico de la empresa y los estándares de código, reduciendo así el tiempo que los ingenieros senior deben dedicar a la formación de nuevos miembros.git add company-choice.md
-git commit -m "Registro de elección de empresa: TechFlow Solutions"
-git push origin main
+Mi idea consiste en un **Agente de Onboarding Técnico**. Este agente recibiría como entrada el perfil de un nuevo empleado y los proyectos asignados. Consultaría la documentación técnica interna y produciría una guía personalizada de aprendizaje, respondiendo dudas sobre el stack tecnológico de la empresa y los estándares de código, reduciendo así el tiempo que los ingenieros senior deben dedicar a la formación de nuevos miembros.
