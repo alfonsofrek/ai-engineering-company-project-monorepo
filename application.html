@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackFlow - Registro de Clientes y Partners</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+    <header class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-bold text-indigo-600 tracking-tight">TrackFlow</a>
+            <a href="index.html" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
+                &larr; Volver al inicio
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-2xl mx-auto w-full px-4 py-12">
+        <div class="bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+            
+            <h1 class="text-3xl font-black text-slate-900 mb-2">Formulario de Registro</h1>
+            <p class="text-slate-500 mb-8">Introduce los datos de tu corporación para comenzar el proceso de alta en nuestra red de distribución.</p>
+
+            <div id="successMessage" class="hidden mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2">
+                <span>🚀</span>
+                <p class="font-medium">¡Solicitud recibida! Los datos son válidos y han sido enviados con éxito.</p>
+            </div>
+
+            <form id="trackflowForm" novalidate class="space-y-6">
+                
+                <fieldset class="border border-slate-200 rounded-xl p-6 space-y-6 bg-slate-50/50">
+                    <legend class="text-sm font-bold uppercase tracking-wider text-slate-400 px-2 bg-white rounded-md border border-slate-200">Datos Obligatorios</legend>
+
+                    <div>
+                        <label for="fullName" class="block text-sm font-semibold text-slate-700 mb-1">Nombre Completo</label>
+                        <input type="text" id="fullName" name="fullName" required
+                               class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm"
+                               placeholder="Ej: Juan Pérez">
+                        <span id="error-fullName" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                    <div>
+                        <label for="companyName" class="block text-sm font-semibold text-slate-700 mb-1">Nombre de la Empresa</label>
+                        <input type="text" id="companyName" name="companyName" required
+                               class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm"
+                               placeholder="Ej: Logística Internacional S.A.">
+                        <span id="error-companyName" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-slate-700 mb-1">Correo Electrónico Corporativo</label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm"
+                               placeholder="ejemplo@empresa.com">
+                        <span id="error-email" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                    <div>
+                        <label for="country" class="block text-sm font-semibold text-slate-700 mb-1">País de Operación</label>
+                        <select id="country" name="country" required
+                                class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm">
+                            <option value="">Selecciona un país...</option>
+                            <option value="México">México</option>
+                            <option value="España">España</option>
+                        </select>
+                        <span id="error-country" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                    <div>
+                        <label for="phone" class="block text-sm font-semibold text-slate-700 mb-1">Teléfono de Contacto</label>
+                        <input type="tel" id="phone" name="phone" required
+                               class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm"
+                               placeholder="+34 600 000 000 o +52 55 0000 0000">
+                        <span id="error-phone" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                    <div>
+                        <label for="monthlyVolume" class="block text-sm font-semibold text-slate-700 mb-1">Volumen de Envíos Mensuales</label>
+                        <input type="number" id="monthlyVolume" name="monthlyVolume" required min="1"
+                               class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm text-sm"
+                               placeholder="Cantidad de paquetes al mes">
+                        <span id="error-monthlyVolume" class="text-xs text-rose-600 font-medium mt-1 block hidden"></span>
+                    </div>
+
+                </fieldset>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="reset" id="resetBtn"
+                            class="w-1/3 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-3 rounded-xl transition-all text-sm">
+                        Limpiar Formulario
+                    </button>
+                    <button type="submit"
+                            class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition-all text-sm">
+                        Enviar Aplicación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="validation.js"></script>
+</body>
+</html>
