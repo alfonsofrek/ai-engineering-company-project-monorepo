@@ -1,4 +1,4 @@
-# Elección de Empresa: TechFlow Solutions
+# Elección de Empresa: TrackFlow Solutions
 
 He elegido **TechFlow Solutions** porque considero que el sector de la consultoría tecnológica es donde la IA puede generar un impacto más inmediato y medible. Me motiva el reto de gestionar grandes volúmenes de documentación técnica y convertirlos en conocimiento accionable mediante sistemas RAG. Además, automatizar flujos de trabajo de ingeniería es una de las habilidades más valoradas en el mercado laboral actual.
 
