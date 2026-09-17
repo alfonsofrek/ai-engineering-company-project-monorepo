@@ -19,13 +19,15 @@ Este repositorio es la **plantilla de inicio** para los proyectos transversales.
 
 ---
 
-## Estado actual de la plantilla
+## Estado actual del proyecto
 
-Actualmente el repositorio ofrece una **estructura base de carpetas y documentación**, pero todavía no incluye aplicaciones ejecutables ni scripts globales en la raíz.
+El proyecto esta configurado para TrackFlow, empresa de logistica de ultima milla y operaciones de almacen en Mexico y Espana.
 
-- `CONTEXT.md` es un placeholder y debe sustituirse por el contexto de la empresa asignada.
-- No existe todavía un `AGENTS.md` en la raíz.
-- Existe metadata del paquete compartido en `packages/shared/package.json` (`@repo/shared-types`), pero aún no hay runner de workspace en raíz.
+- `CONTEXT.md` contiene la fuente de verdad del negocio.
+- `AGENTS.md` y `memory-bank/` definen el contexto operativo para agentes.
+- `uis/website` contiene el sitio publico y su formulario de onboarding.
+- `uis/backoffice` contiene la vista interna de solicitudes, KPIs y segmentacion.
+- Las aplicaciones son independientes y se validan con `npm run lint` y `npm run build` dentro de cada carpeta.
 
 ---
 
@@ -51,6 +53,17 @@ ai-engineering-company-project-monorepo/
 ├── uis/                      # Interfaces de usuario (React, Next.js, Streamlit, HTML)
 └── workflows/                # Documentación de automatizaciones/orquestación
 ```
+
+## Ejecutar las interfaces
+
+Desde cada carpeta de aplicación:
+
+```bash
+npm install
+npm run dev
+```
+
+Usa `uis/website` para la experiencia pública y `uis/backoffice` para la operación interna.
 
 ---
 
