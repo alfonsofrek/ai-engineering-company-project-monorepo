@@ -19,13 +19,16 @@ Este repositorio es la **plantilla de inicio** para los proyectos transversales.
 
 ---
 
-## Estado actual de la plantilla
+## Estado actual del proyecto
 
-Actualmente el repositorio ofrece una **estructura base de carpetas y documentación**, pero todavía no incluye aplicaciones ejecutables ni scripts globales en la raíz.
+El proyecto esta configurado para TrackFlow, empresa de logistica de ultima milla y operaciones de almacen en Mexico y Espana.
 
-- `CONTEXT.md` es un placeholder y debe sustituirse por el contexto de la empresa asignada.
-- No existe todavía un `AGENTS.md` en la raíz.
-- Existe metadata del paquete compartido en `packages/shared/package.json` (`@repo/shared-types`), pero aún no hay runner de workspace en raíz.
+- `CONTEXT.md` contiene la fuente de verdad del negocio.
+- `AGENTS.md` y `memory-bank/` definen el contexto operativo para agentes.
+- `uis/website` contiene el sitio publico y su formulario de onboarding.
+- `uis/backoffice` contiene la vista interna de solicitudes, KPIs y segmentacion.
+- `scripts/analyze.py`, `services/api` y la vista de incidencias del backoffice implementan el flujo de analisis de TrackFlow.
+- Las aplicaciones son independientes y se validan con `npm run lint` y `npm run build` dentro de cada carpeta.
 
 ---
 
@@ -51,6 +54,44 @@ ai-engineering-company-project-monorepo/
 ├── uis/                      # Interfaces de usuario (React, Next.js, Streamlit, HTML)
 └── workflows/                # Documentación de automatizaciones/orquestación
 ```
+
+## Ejecutar las interfaces
+
+Desde cada carpeta de aplicación:
+
+```bash
+npm install
+npm run dev
+```
+
+Usa `uis/website` para la experiencia pública y `uis/backoffice` para la operación interna.
+
+## Analisis de incidencias
+
+El archivo `scripts/incidents-trackflow.csv` es un fixture sintetico de 100 filas con correos `example.com`. Sus resultados agregados coinciden con los valores de aceptacion publicados para TrackFlow, sin incluir los correos de clientes de la fuente original.
+
+Ejecuta el script desde la raiz del repositorio:
+
+```bash
+python scripts/analyze.py scripts/incidents-trackflow.csv
+```
+
+Para usar la interfaz, instala e inicia la API desde la raiz:
+
+```bash
+python -m pip install -r services/api/requirements.txt
+python -m uvicorn services.api.main:app --host 0.0.0.0 --port 8000
+```
+
+En una segunda terminal, inicia el backoffice:
+
+```bash
+cd uis/backoffice
+npm install
+npm run dev -- --hostname 0.0.0.0
+```
+
+Abre `/incidents-analysis`, carga el fixture y pulsa **Analizar archivo**. Las capturas de entrega son el [informe de consola](docs/screenshots/console-output.png) y el [analisis web](docs/screenshots/incidents-analysis.png).
 
 ---
 
