@@ -11,8 +11,8 @@
 - Evidencias del seeder, filtro API y directorio filtrado guardadas en `docs/screenshots/` y enlazadas desde los README.
 - Autenticación JWT, CRUD TinyDB de usuarios, perfiles uno-a-uno y autorización por propietario/admin implementados en la API.
 - Rutas de proveedores protegidas con bearer token; `uv run pytest tests` pasa con 8 pruebas, incluyendo tokens inválidos/expirados y permisos.
-- Backoffice conectado a JWT: login, registro, perfil, logout, guard cliente y manejo global de `401`; website público sin cambios.
-- `npm run lint` y `npm run build` pasan en backoffice con las rutas `/login`, `/register` y `/account/profile`.
+- Backoffice y Talent Pipeline Tracker conectados a JWT: login, registro, perfil, logout, guard cliente y manejo global de `401`; website público sin cambios.
+- `npm run lint` y `npm run build` pasan en ambas aplicaciones internas con las rutas `/login`, `/register` y `/account/profile`.
 
 ## Siguiente
 - Conectar formularios a un servicio bajo `services/`.

@@ -5,6 +5,7 @@ import type {
   CandidatePatch,
   Note,
 } from "@/types";
+import { authFetch } from "@/lib/auth-client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -18,7 +19,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await authFetch(`${API_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
