@@ -26,7 +26,7 @@ The project is configured for TrackFlow, a last-mile logistics and warehouse ope
 - `CONTEXT.md` is the business source of truth.
 - `AGENTS.md` and `memory-bank/` define the operating context for coding agents.
 - `uis/website` contains the public site and canonical onboarding form.
-- `uis/backoffice` contains the internal request queue, KPIs, and volume segmentation.
+- `uis/backoffice` contains the internal request queue, KPIs, volume segmentation, and supplier directory.
 - Each application is validated with `npm run lint` and `npm run build` from its own directory.
 
 ---
@@ -64,6 +64,12 @@ npm run dev
 ```
 
 Use `uis/website` for the public experience and `uis/backoffice` for internal operations.
+
+## Supplier directory
+
+The TrackFlow supplier directory follows the [official supplier briefing](https://github.com/4GeeksAcademy/ai-engineering-syllabus/blob/main/content/contexts/supplier-directory/trackflow-BRIEFING.es.md). It includes a TinyDB seeder, country/category filters, rate and status updates, and currency validation. Run `uv sync --group dev`, `uv run seed`, and `uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000` from `services/api`, then open `/suppliers` in the backoffice. Run `uv run pytest tests` in the API directory to verify the acceptance tests.
+
+Delivery evidence: [seeder output](docs/screenshots/supplier-seed.png), [filtered API response](docs/screenshots/supplier-api-filter.png), and [filtered supplier directory](docs/screenshots/supplier-directory-filter.png).
 
 ---
 
