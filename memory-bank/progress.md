@@ -9,9 +9,11 @@
 - Directorio de proveedores TrackFlow implementado según el briefing oficial: API TinyDB, validación de moneda por país, 15 registros idempotentes, filtros, CRUD e historial de cambios de estado.
 - Backoffice de proveedores conectado a la API; pruebas `pytest` pasan y `npm run lint` / `npm run build` pasan.
 - Evidencias del seeder, filtro API y directorio filtrado guardadas en `docs/screenshots/` y enlazadas desde los README.
+- Autenticación JWT, CRUD TinyDB de usuarios, perfiles uno-a-uno y autorización por propietario/admin implementados en la API.
+- Rutas de proveedores protegidas con bearer token; `uv run pytest tests` pasa con 8 pruebas, incluyendo tokens inválidos/expirados y permisos.
 
 ## Siguiente
 - Conectar formularios a un servicio bajo `services/`.
 - Persistir solicitudes y calcular KPIs reales.
-- Incorporar autenticacion y permisos para el backoffice.
+- Integrar el envío de tokens JWT desde el backoffice en una fase posterior.
 - Añadir pruebas de validacion para email, telefono, pais y volumen.

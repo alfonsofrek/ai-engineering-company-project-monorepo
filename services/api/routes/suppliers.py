@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from tinydb import Query as TinyQuery
 
 from services.api.database import supplier_status_history_table, suppliers_table
+from services.api.security import get_current_user
 from services.api.models import (
     RateUpdate,
     StatusUpdate,
@@ -17,7 +18,7 @@ from services.api.models import (
     SupplierStatusEvent,
 )
 
-router = APIRouter(tags=["suppliers"])
+router = APIRouter(tags=["suppliers"], dependencies=[Depends(get_current_user)])
 
 
 def serialize_supplier(document: dict, document_id: int) -> SupplierResponse:
