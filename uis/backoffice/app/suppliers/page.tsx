@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
+import { apiFetch, errorMessage } from "../../lib/auth-client";
 import "./suppliers.css";
 
 type Supplier = {
@@ -68,9 +69,9 @@ export default function SuppliersPage() {
     if (country) params.set("country", country);
     if (category) params.set("category", category);
     const query = params.toString();
-    fetch(`/api/suppliers${query ? `?${query}` : ""}`)
+    apiFetch(`/api/suppliers${query ? `?${query}` : ""}`)
       .then(async (response) => {
-        if (!response.ok) throw new Error("No se pudo cargar el directorio.");
+        if (!response.ok) throw new Error(await errorMessage(await response.json(), "No se pudo cargar el directorio."));
         return response.json() as Promise<Supplier[]>;
       })
       .then(setSuppliers)
@@ -92,7 +93,7 @@ export default function SuppliersPage() {
     setError("");
     setNotice("");
     try {
-      const response = await fetch("/api/suppliers", {
+      const response = await apiFetch("/api/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -108,7 +109,7 @@ export default function SuppliersPage() {
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.detail?.[0]?.msg ?? body.detail ?? "No se pudo registrar el proveedor.");
+      if (!response.ok) throw new Error(errorMessage(body, "No se pudo registrar el proveedor."));
       if ((!country || country === newCountry) && (!category || newCategories.includes(category))) {
         setSuppliers((current) => [body as Supplier, ...current]);
       }
@@ -131,13 +132,13 @@ export default function SuppliersPage() {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(`/api/suppliers/${supplier.id}/rate`, {
+      const response = await apiFetch(`/api/suppliers/${supplier.id}/rate`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rate_per_shipment: value }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.detail?.[0]?.msg ?? body.detail ?? "No se pudo actualizar la tarifa.");
+      if (!response.ok) throw new Error(errorMessage(body, "No se pudo actualizar la tarifa."));
       setSuppliers((current) => current.map((item) => item.id === supplier.id ? body as Supplier : item));
       setRateDrafts((current) => {
         const drafts = { ...current };
@@ -154,13 +155,13 @@ export default function SuppliersPage() {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(`/api/suppliers/${supplier.id}/status`, {
+      const response = await apiFetch(`/api/suppliers/${supplier.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: supplier.status === "active" ? "suspended" : "active" }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.detail?.[0]?.msg ?? body.detail ?? "No se pudo cambiar el estado.");
+      if (!response.ok) throw new Error(errorMessage(body, "No se pudo cambiar el estado."));
       setSuppliers((current) => current.map((item) => item.id === supplier.id ? body as Supplier : item));
       setNotice(`${supplier.name}: ${body.status === "active" ? "activo" : "suspendido"}.`);
     } catch (requestError) {
