@@ -38,8 +38,8 @@
 .incident-description{display:block;max-width:320px;margin-top:4px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .incident-ref{display:block;margin-top:4px;font-size:10px;color:var(--muted)}
 .incident-status{display:inline-block;border-radius:20px;padding:4px 9px;font-size:10px;font-weight:700}
-.incident-status.open{background:#f9e8dc;color:#a86443}
-.incident-status.in_progress{background:#f8f0d9;color:#9d762d}
+.incident-status.open{background:#f9e8dc;color:#8a4a2c}
+.incident-status.in_progress{background:#f8f0d9;color:#7a5a1c}
 .incident-status.resolved{background:#e1f0e6;color:#306246}
 .incident-status.discarded{background:#ececec;color:#5f6664}
 .incident-status-select{display:block;margin-top:8px;min-height:30px;border:1px solid var(--line);background:#fff;font:500 11px var(--font-dm-sans),sans-serif;color:var(--ink)}
