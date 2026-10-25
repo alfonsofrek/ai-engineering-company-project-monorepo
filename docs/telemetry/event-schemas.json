@@ -1,0 +1,1981 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trackflow.example/schemas/telemetry/event.schema.json",
+  "title": "TrackFlow telemetry event",
+  "description": "Envelope común + payload por event_type. Ver docs/telemetry/telemetry-plan.md.",
+  "allOf": [
+    {
+      "$ref": "#/definitions/envelope"
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "lead_form_submitted"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/lead_form_submitted"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "lead_status_changed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/lead_status_changed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_created"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_created"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_status_changed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_status_changed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_status_change_rejected"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_status_change_rejected"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "lead_form_started"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/lead_form_started"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_validation_failed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_validation_failed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_backlog_threshold_triggered"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_backlog_threshold_triggered"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "incident_list_filtered"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/incident_list_filtered"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "supplier_created"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/supplier_created"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "supplier_rate_updated"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/supplier_rate_updated"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "supplier_status_changed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/supplier_status_changed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "csv_analysis_completed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/csv_analysis_completed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "csv_results_exported"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/csv_results_exported"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "auth_login_succeeded"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/auth_login_succeeded"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "auth_login_failed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/auth_login_failed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "session_expired"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/session_expired"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "user_registered"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/user_registered"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "page_viewed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/page_viewed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ui_error_displayed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/ui_error_displayed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ui_error_retry_clicked"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/ui_error_retry_clicked"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "frontend_error_uncaught"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/frontend_error_uncaught"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "api_error_occurred"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/api_error_occurred"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "api_request_completed"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/api_request_completed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "web_vitals_reported"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/web_vitals_reported"
+      }
+    }
+  ],
+  "definitions": {
+    "envelope": {
+      "type": "object",
+      "required": [
+        "eventId",
+        "timestamp",
+        "sessionId",
+        "userId",
+        "event_type",
+        "schemaVersion",
+        "requestId",
+        "source",
+        "properties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "receivedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "userId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "lead_form_submitted",
+            "lead_status_changed",
+            "incident_created",
+            "incident_status_changed",
+            "incident_status_change_rejected",
+            "lead_form_started",
+            "incident_validation_failed",
+            "incident_backlog_threshold_triggered",
+            "incident_list_filtered",
+            "supplier_created",
+            "supplier_rate_updated",
+            "supplier_status_changed",
+            "csv_analysis_completed",
+            "csv_results_exported",
+            "auth_login_succeeded",
+            "auth_login_failed",
+            "session_expired",
+            "user_registered",
+            "page_viewed",
+            "ui_error_displayed",
+            "ui_error_retry_clicked",
+            "frontend_error_uncaught",
+            "api_error_occurred",
+            "api_request_completed",
+            "web_vitals_reported"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "app",
+            "release",
+            "environment"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "app": {
+              "type": "string",
+              "enum": [
+                "website",
+                "backoffice",
+                "talent_tracker",
+                "api"
+              ]
+            },
+            "release": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "development",
+                "production"
+              ]
+            }
+          }
+        },
+        "properties": {
+          "type": "object"
+        }
+      }
+    },
+    "lead_form_submitted": {
+      "description": "lead_form_submitted — Cada intento de envío del formulario de onboarding, sea válido o no (después de la validación del navegador y de las reglas de CONTEXT.md §5).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "is_valid",
+            "invalid_fields",
+            "attempt_number"
+          ],
+          "properties": {
+            "is_valid": {
+              "type": "boolean",
+              "description": "true si el envío cumple todas las reglas de CONTEXT.md §5."
+            },
+            "invalid_fields": {
+              "type": "array",
+              "description": "Campos que fallaron (vacío si is_valid=true). Solo nombres de campo, nunca valores.",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "fullName",
+                  "companyName",
+                  "email",
+                  "country",
+                  "phone",
+                  "monthlyVolume"
+                ]
+              }
+            },
+            "country": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "País declarado (si es uno de los válidos).",
+              "enum": [
+                "Mexico",
+                "Espana",
+                null
+              ]
+            },
+            "monthly_volume": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Envíos mensuales declarados (entero > 0). Dato de negocio, no personal.",
+              "minimum": 1
+            },
+            "segment": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Segmento derivado de monthly_volume (CONTEXT.md §6).",
+              "enum": [
+                "small",
+                "mid_market",
+                "enterprise",
+                null
+              ]
+            },
+            "attempt_number": {
+              "type": "integer",
+              "description": "Nº de intento de envío dentro de la sesión (1 = primero).",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "lead_status_changed": {
+      "description": "lead_status_changed — Cada cambio de estado de una solicitud de onboarding confirmado en servidor (nuevo → en_revision → contactado → activado | descartado).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lead_id",
+            "from_status",
+            "to_status",
+            "country",
+            "segment",
+            "lead_created_at",
+            "actor_role"
+          ],
+          "properties": {
+            "lead_id": {
+              "type": "string",
+              "description": "Identificador interno de la solicitud (no contiene datos personales)."
+            },
+            "from_status": {
+              "type": "string",
+              "description": "Estado anterior.",
+              "enum": [
+                "nuevo",
+                "en_revision",
+                "contactado",
+                "activado",
+                "descartado"
+              ]
+            },
+            "to_status": {
+              "type": "string",
+              "description": "Estado nuevo.",
+              "enum": [
+                "nuevo",
+                "en_revision",
+                "contactado",
+                "activado",
+                "descartado"
+              ]
+            },
+            "country": {
+              "type": "string",
+              "description": "País de la cuenta.",
+              "enum": [
+                "Mexico",
+                "Espana"
+              ]
+            },
+            "segment": {
+              "type": "string",
+              "description": "Segmento por volumen.",
+              "enum": [
+                "small",
+                "mid_market",
+                "enterprise"
+              ]
+            },
+            "lead_created_at": {
+              "type": "string",
+              "description": "Fecha de registro de la solicitud (ISO 8601) — permite calcular el tiempo hasta activación sin joins.",
+              "format": "date-time"
+            },
+            "actor_role": {
+              "type": "string",
+              "description": "Rol de quien hace el cambio.",
+              "enum": [
+                "admin",
+                "manager",
+                "user"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "incident_created": {
+      "description": "incident_created — Alta correcta de una incidencia desde el formulario del backoffice. El seed histórico no emite eventos (sus datos ya están en la tabla).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "incident_id",
+            "category",
+            "origin",
+            "branch",
+            "initial_status",
+            "description_length"
+          ],
+          "properties": {
+            "incident_id": {
+              "type": "integer",
+              "description": "ID de la incidencia creada."
+            },
+            "category": {
+              "type": "string",
+              "description": "Categoría (company-BRIEFING.md §2).",
+              "enum": [
+                "lost_parcel",
+                "delayed_delivery",
+                "wrong_address",
+                "return_request",
+                "damage"
+              ]
+            },
+            "origin": {
+              "type": "string",
+              "description": "Origen del reporte.",
+              "enum": [
+                "customer",
+                "branch",
+                "internal"
+              ]
+            },
+            "branch": {
+              "type": "string",
+              "description": "Sucursal (company-BRIEFING.md §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central"
+              ]
+            },
+            "initial_status": {
+              "type": "string",
+              "description": "Estado con el que nace.",
+              "enum": [
+                "open",
+                "in_progress"
+              ]
+            },
+            "description_length": {
+              "type": "integer",
+              "description": "Longitud de la descripción en caracteres (el texto no se emite).",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "incident_status_changed": {
+      "description": "incident_status_changed — Transición de estado válida y persistida.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "incident_id",
+            "from_status",
+            "to_status",
+            "category",
+            "branch",
+            "origin",
+            "incident_created_at",
+            "seconds_in_previous_status"
+          ],
+          "properties": {
+            "incident_id": {
+              "type": "integer",
+              "description": "ID de la incidencia."
+            },
+            "from_status": {
+              "type": "string",
+              "description": "Estado anterior.",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "discarded"
+              ]
+            },
+            "to_status": {
+              "type": "string",
+              "description": "Estado nuevo.",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "discarded"
+              ]
+            },
+            "category": {
+              "type": "string",
+              "description": "Categoría.",
+              "enum": [
+                "lost_parcel",
+                "delayed_delivery",
+                "wrong_address",
+                "return_request",
+                "damage"
+              ]
+            },
+            "branch": {
+              "type": "string",
+              "description": "Sucursal.",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central"
+              ]
+            },
+            "origin": {
+              "type": "string",
+              "description": "Origen.",
+              "enum": [
+                "customer",
+                "branch",
+                "internal"
+              ]
+            },
+            "incident_created_at": {
+              "type": "string",
+              "description": "Creación de la incidencia (ISO 8601) para calcular duración.",
+              "format": "date-time"
+            },
+            "seconds_in_previous_status": {
+              "type": "integer",
+              "description": "Segundos que pasó en from_status.",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "incident_status_change_rejected": {
+      "description": "incident_status_change_rejected — Intento de transición no permitida (p. ej. open → resolved) o de cambiar una incidencia en estado final. Es el equivalente en TrackFlow al «cambio directo de stock rechazado»: una modificación que el sistema no permite fuera del flujo.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "incident_id",
+            "current_status",
+            "requested_status",
+            "reason",
+            "branch"
+          ],
+          "properties": {
+            "incident_id": {
+              "type": "integer",
+              "description": "ID de la incidencia."
+            },
+            "current_status": {
+              "type": "string",
+              "description": "Estado real en el momento del intento.",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "discarded"
+              ]
+            },
+            "requested_status": {
+              "type": "string",
+              "description": "Estado pedido.",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "discarded"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "description": "Motivo del rechazo.",
+              "enum": [
+                "invalid_transition",
+                "final_state"
+              ]
+            },
+            "branch": {
+              "type": "string",
+              "description": "Sucursal.",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "lead_form_started": {
+      "description": "lead_form_started — Primera interacción con el formulario en la sesión (una sola vez por sesión).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "first_field"
+          ],
+          "properties": {
+            "first_field": {
+              "type": "string",
+              "description": "Primer campo con foco.",
+              "enum": [
+                "fullName",
+                "companyName",
+                "email",
+                "country",
+                "phone",
+                "monthlyVolume"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "incident_validation_failed": {
+      "description": "incident_validation_failed — Alta rechazada por validación en servidor (tras pasar la validación del cliente o saltársela).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fields"
+          ],
+          "properties": {
+            "fields": {
+              "type": "array",
+              "description": "Campos con error (solo nombres).",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "title",
+                  "description",
+                  "category",
+                  "status",
+                  "origin",
+                  "branch",
+                  "body"
+                ]
+              }
+            },
+            "origin": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Origen si era válido.",
+              "enum": [
+                "customer",
+                "branch",
+                "internal",
+                null
+              ]
+            },
+            "branch": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Sucursal si era válida.",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central",
+                null
+              ]
+            }
+          }
+        }
+      }
+    },
+    "incident_backlog_threshold_triggered": {
+      "description": "incident_backlog_threshold_triggered — El nº de incidencias `open` + `in_progress` de una sucursal cruza hacia arriba el umbral configurado (por defecto 25). Se emite al cruzar, no mientras siga por encima. Equivalente al «umbral mínimo de stock».",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "branch",
+            "open_count",
+            "threshold"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string",
+              "description": "Sucursal.",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central"
+              ]
+            },
+            "open_count": {
+              "type": "integer",
+              "description": "Incidencias abiertas + en curso al cruzar.",
+              "minimum": 0
+            },
+            "threshold": {
+              "type": "integer",
+              "description": "Umbral configurado.",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "incident_list_filtered": {
+      "description": "incident_list_filtered — Cambio de cualquier filtro del listado (estado, origen, sucursal).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "result_count"
+          ],
+          "properties": {
+            "status": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Filtro de estado.",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "discarded",
+                null
+              ]
+            },
+            "origin": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Filtro de origen.",
+              "enum": [
+                "customer",
+                "branch",
+                "internal",
+                null
+              ]
+            },
+            "branch": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Filtro de sucursal.",
+              "enum": [
+                "los_angeles",
+                "zaragoza",
+                "central",
+                null
+              ]
+            },
+            "result_count": {
+              "type": "integer",
+              "description": "Filas devueltas.",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "supplier_created": {
+      "description": "supplier_created — Alta de proveedor.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "supplier_id",
+            "country",
+            "categories",
+            "currency"
+          ],
+          "properties": {
+            "supplier_id": {
+              "type": "integer",
+              "description": "ID del proveedor."
+            },
+            "country": {
+              "type": "string",
+              "description": "País del proveedor.",
+              "enum": [
+                "USA",
+                "Spain"
+              ]
+            },
+            "categories": {
+              "type": "array",
+              "description": "Categorías del proveedor.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "currency": {
+              "type": "string",
+              "description": "Moneda del contrato.",
+              "enum": [
+                "USD",
+                "EUR"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "supplier_rate_updated": {
+      "description": "supplier_rate_updated — Cambio de tarifa por envío/unidad.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "supplier_id",
+            "previous_rate",
+            "new_rate",
+            "change_pct",
+            "currency"
+          ],
+          "properties": {
+            "supplier_id": {
+              "type": "integer",
+              "description": "ID del proveedor."
+            },
+            "previous_rate": {
+              "type": "number",
+              "description": "Tarifa anterior.",
+              "minimum": 0
+            },
+            "new_rate": {
+              "type": "number",
+              "description": "Tarifa nueva.",
+              "minimum": 0
+            },
+            "change_pct": {
+              "type": "number",
+              "description": "Variación porcentual."
+            },
+            "currency": {
+              "type": "string",
+              "description": "Moneda.",
+              "enum": [
+                "USD",
+                "EUR"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "supplier_status_changed": {
+      "description": "supplier_status_changed — Activación o suspensión de un proveedor.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "supplier_id",
+            "from_status",
+            "to_status",
+            "country"
+          ],
+          "properties": {
+            "supplier_id": {
+              "type": "integer",
+              "description": "ID del proveedor."
+            },
+            "from_status": {
+              "type": "string",
+              "description": "Estado anterior.",
+              "enum": [
+                "active",
+                "suspended"
+              ]
+            },
+            "to_status": {
+              "type": "string",
+              "description": "Estado nuevo.",
+              "enum": [
+                "active",
+                "suspended"
+              ]
+            },
+            "country": {
+              "type": "string",
+              "description": "País.",
+              "enum": [
+                "USA",
+                "Spain"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "csv_analysis_completed": {
+      "description": "csv_analysis_completed — Fin de cada análisis de CSV, correcto o rechazado.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "file_size_bytes"
+          ],
+          "properties": {
+            "outcome": {
+              "type": "string",
+              "description": "Resultado.",
+              "enum": [
+                "analyzed",
+                "rejected_format",
+                "rejected_empty",
+                "rejected_encoding"
+              ]
+            },
+            "total_records": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Filas procesadas.",
+              "minimum": 0
+            },
+            "invalid_records": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Filas inválidas.",
+              "minimum": 0
+            },
+            "file_size_bytes": {
+              "type": "integer",
+              "description": "Tamaño del fichero.",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "csv_results_exported": {
+      "description": "csv_results_exported — Descarga del CSV de resultados.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total_records"
+          ],
+          "properties": {
+            "total_records": {
+              "type": "integer",
+              "description": "Filas del análisis exportado.",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "auth_login_succeeded": {
+      "description": "auth_login_succeeded — Inicio de sesión correcto.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "app"
+          ],
+          "properties": {
+            "role": {
+              "type": "string",
+              "description": "Rol del usuario.",
+              "enum": [
+                "admin",
+                "manager",
+                "user"
+              ]
+            },
+            "app": {
+              "type": "string",
+              "description": "App desde la que se inicia.",
+              "enum": [
+                "backoffice",
+                "talent_tracker"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "auth_login_failed": {
+      "description": "auth_login_failed — Credenciales incorrectas o cuenta inactiva.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "email_hash",
+            "app"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "description": "Motivo (el cliente siempre ve el mismo mensaje genérico).",
+              "enum": [
+                "invalid_credentials",
+                "inactive_account",
+                "unknown_email"
+              ]
+            },
+            "email_hash": {
+              "type": "string",
+              "description": "HMAC-SHA256 del email normalizado con una clave del servidor, truncado a 16 hex. Permite contar intentos por cuenta sin guardar el email.",
+              "pattern": "^[0-9a-f]{16}$"
+            },
+            "app": {
+              "type": "string",
+              "description": "App de origen.",
+              "enum": [
+                "backoffice",
+                "talent_tracker"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "session_expired": {
+      "description": "session_expired — Petición autenticada rechazada por token caducado o inválido.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta donde ocurrió (p. ej. `/incidents`).",
+              "maxLength": 80
+            },
+            "minutes_since_login": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Minutos desde el login.",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "user_registered": {
+      "description": "user_registered — Alta de cuenta interna.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "has_profile_name",
+            "has_phone"
+          ],
+          "properties": {
+            "has_profile_name": {
+              "type": "boolean",
+              "description": "Si rellenó el nombre."
+            },
+            "has_phone": {
+              "type": "boolean",
+              "description": "Si rellenó el teléfono."
+            }
+          }
+        }
+      }
+    },
+    "page_viewed": {
+      "description": "page_viewed — Carga o navegación a una ruta.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "app",
+            "route"
+          ],
+          "properties": {
+            "app": {
+              "type": "string",
+              "description": "Aplicación.",
+              "enum": [
+                "website",
+                "backoffice",
+                "talent_tracker"
+              ]
+            },
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta sin IDs ni query (p. ej. `/candidates/[id]`).",
+              "maxLength": 80
+            },
+            "referrer_route": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Ruta anterior dentro de la app.",
+              "maxLength": 80
+            }
+          }
+        }
+      }
+    },
+    "ui_error_displayed": {
+      "description": "ui_error_displayed — Se muestra un estado de error al usuario.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "error_kind",
+            "has_retry"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta.",
+              "maxLength": 80
+            },
+            "error_kind": {
+              "type": "string",
+              "description": "Tipo de error.",
+              "enum": [
+                "network",
+                "http_4xx",
+                "http_5xx",
+                "unexpected_response",
+                "unknown"
+              ]
+            },
+            "http_status": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Código HTTP si aplica.",
+              "minimum": 100,
+              "maximum": 599
+            },
+            "has_retry": {
+              "type": "boolean",
+              "description": "Si se ofreció reintentar."
+            }
+          }
+        }
+      }
+    },
+    "ui_error_retry_clicked": {
+      "description": "ui_error_retry_clicked — El usuario pulsa Reintentar.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "error_kind",
+            "attempt"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta.",
+              "maxLength": 80
+            },
+            "error_kind": {
+              "type": "string",
+              "description": "Tipo de error que se reintenta.",
+              "enum": [
+                "network",
+                "http_4xx",
+                "http_5xx",
+                "unexpected_response",
+                "unknown"
+              ]
+            },
+            "attempt": {
+              "type": "integer",
+              "description": "Nº de reintento.",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "frontend_error_uncaught": {
+      "description": "frontend_error_uncaught — Excepción de JavaScript no controlada.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "app",
+            "route",
+            "error_name",
+            "error_fingerprint",
+            "release"
+          ],
+          "properties": {
+            "app": {
+              "type": "string",
+              "description": "Aplicación.",
+              "enum": [
+                "website",
+                "backoffice",
+                "talent_tracker"
+              ]
+            },
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta.",
+              "maxLength": 80
+            },
+            "error_name": {
+              "type": "string",
+              "description": "Clase del error (TypeError…).",
+              "maxLength": 60
+            },
+            "error_fingerprint": {
+              "type": "string",
+              "description": "Hash del mensaje normalizado + primera línea de stack (sin URLs con query).",
+              "maxLength": 64
+            },
+            "release": {
+              "type": "string",
+              "description": "Versión desplegada (git SHA corto).",
+              "maxLength": 40
+            }
+          }
+        }
+      }
+    },
+    "api_error_occurred": {
+      "description": "api_error_occurred — Respuesta 500 o 503.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "method",
+            "http_status",
+            "error_class"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta FastAPI (p. ej. `/api/incidents/{incident_id}`).",
+              "maxLength": 80
+            },
+            "method": {
+              "type": "string",
+              "description": "Método HTTP.",
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ]
+            },
+            "http_status": {
+              "type": "integer",
+              "description": "500 o 503.",
+              "enum": [
+                500,
+                503
+              ]
+            },
+            "error_class": {
+              "type": "string",
+              "description": "Clase de la excepción (RuntimeError, OSError…).",
+              "maxLength": 60
+            }
+          }
+        }
+      }
+    },
+    "api_request_completed": {
+      "description": "api_request_completed — Fin de cualquier petición HTTP.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "method",
+            "http_status",
+            "duration_ms",
+            "sampled"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta.",
+              "maxLength": 80
+            },
+            "method": {
+              "type": "string",
+              "description": "Método HTTP.",
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ]
+            },
+            "http_status": {
+              "type": "integer",
+              "description": "Código HTTP.",
+              "minimum": 100,
+              "maximum": 599
+            },
+            "duration_ms": {
+              "type": "number",
+              "description": "Duración en ms.",
+              "minimum": 0
+            },
+            "response_bytes": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Tamaño de la respuesta.",
+              "minimum": 0
+            },
+            "sampled": {
+              "type": "boolean",
+              "description": "true si entra por muestreo (para reescalar)."
+            }
+          }
+        }
+      }
+    },
+    "web_vitals_reported": {
+      "description": "web_vitals_reported — Cuando el navegador calcula LCP, CLS, INP, FCP o TTFB de una vista.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "app",
+            "route",
+            "metric",
+            "value",
+            "rating",
+            "device_class"
+          ],
+          "properties": {
+            "app": {
+              "type": "string",
+              "description": "Aplicación.",
+              "enum": [
+                "website",
+                "backoffice"
+              ]
+            },
+            "route": {
+              "type": "string",
+              "description": "Plantilla de ruta.",
+              "maxLength": 80
+            },
+            "metric": {
+              "type": "string",
+              "description": "Métrica.",
+              "enum": [
+                "LCP",
+                "CLS",
+                "INP",
+                "FCP",
+                "TTFB"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "description": "Valor (ms, o sin unidad para CLS).",
+              "minimum": 0
+            },
+            "rating": {
+              "type": "string",
+              "description": "Valoración estándar.",
+              "enum": [
+                "good",
+                "needs-improvement",
+                "poor"
+              ]
+            },
+            "device_class": {
+              "type": "string",
+              "description": "Tipo de dispositivo por ancho de viewport.",
+              "enum": [
+                "mobile",
+                "tablet",
+                "desktop"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-trackflow-events": {
+    "lead_form_submitted": {
+      "category": "business_onboarding",
+      "classification": "mandatory",
+      "brief_metrics": [
+        "MM-1",
+        "MM-2",
+        "MM-4"
+      ],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "is_valid",
+        "invalid_fields",
+        "country",
+        "monthly_volume",
+        "segment",
+        "attempt_number"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "lead_status_changed": {
+      "category": "business_onboarding",
+      "classification": "mandatory",
+      "brief_metrics": [
+        "MM-1",
+        "MM-3"
+      ],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "lead_id",
+        "from_status",
+        "to_status",
+        "country",
+        "segment",
+        "lead_created_at",
+        "actor_role"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_created": {
+      "category": "business_incidents",
+      "classification": "mandatory",
+      "brief_metrics": [
+        "MM-5"
+      ],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "incident_id",
+        "category",
+        "origin",
+        "branch",
+        "initial_status",
+        "description_length"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_status_changed": {
+      "category": "business_incidents",
+      "classification": "mandatory",
+      "brief_metrics": [
+        "MM-6"
+      ],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "incident_id",
+        "from_status",
+        "to_status",
+        "category",
+        "branch",
+        "origin",
+        "incident_created_at",
+        "seconds_in_previous_status"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_status_change_rejected": {
+      "category": "business_incidents",
+      "classification": "mandatory",
+      "brief_metrics": [
+        "MM-7"
+      ],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "incident_id",
+        "current_status",
+        "requested_status",
+        "reason",
+        "branch"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "lead_form_started": {
+      "category": "navigation",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "first_field"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_validation_failed": {
+      "category": "errors",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "fields",
+        "origin",
+        "branch"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_backlog_threshold_triggered": {
+      "category": "business_incidents",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "stream",
+      "pii_handling": "none",
+      "allowlist": [
+        "branch",
+        "open_count",
+        "threshold"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "incident_list_filtered": {
+      "category": "navigation",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "status",
+        "origin",
+        "branch",
+        "result_count"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "supplier_created": {
+      "category": "business_suppliers",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "supplier_id",
+        "country",
+        "categories",
+        "currency"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "supplier_rate_updated": {
+      "category": "business_suppliers",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "supplier_id",
+        "previous_rate",
+        "new_rate",
+        "change_pct",
+        "currency"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "supplier_status_changed": {
+      "category": "business_suppliers",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "supplier_id",
+        "from_status",
+        "to_status",
+        "country"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "csv_analysis_completed": {
+      "category": "business_incidents",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "outcome",
+        "total_records",
+        "invalid_records",
+        "file_size_bytes"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "csv_results_exported": {
+      "category": "business_incidents",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "total_records"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "auth_login_succeeded": {
+      "category": "authentication",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "role",
+        "app"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "auth_login_failed": {
+      "category": "authentication",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "stream",
+      "pii_handling": "pseudonymized",
+      "allowlist": [
+        "reason",
+        "email_hash",
+        "app"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "session_expired": {
+      "category": "authentication",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "route",
+        "minutes_since_login"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "user_registered": {
+      "category": "authentication",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "has_profile_name",
+        "has_phone"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "page_viewed": {
+      "category": "navigation",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "app",
+        "route",
+        "referrer_route"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "ui_error_displayed": {
+      "category": "errors",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "route",
+        "error_kind",
+        "http_status",
+        "has_retry"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "ui_error_retry_clicked": {
+      "category": "errors",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "route",
+        "error_kind",
+        "attempt"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "frontend_error_uncaught": {
+      "category": "errors",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "stream",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "app",
+        "route",
+        "error_name",
+        "error_fingerprint",
+        "release"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "api_error_occurred": {
+      "category": "errors",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "stream",
+      "pii_handling": "excluded",
+      "allowlist": [
+        "route",
+        "method",
+        "http_status",
+        "error_class"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "api_request_completed": {
+      "category": "performance",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "route",
+        "method",
+        "http_status",
+        "duration_ms",
+        "response_bytes",
+        "sampled"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "web_vitals_reported": {
+      "category": "performance",
+      "classification": "opportunity",
+      "brief_metrics": [],
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "app",
+        "route",
+        "metric",
+        "value",
+        "rating",
+        "device_class"
+      ],
+      "schemaVersion": "1.0.0"
+    }
+  }
+}
