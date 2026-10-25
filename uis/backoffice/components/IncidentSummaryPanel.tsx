@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/auth-client";
-import { parseResponse, toUserMessage } from "../lib/http";
+import { useApiQuery } from "../hooks/useApiQuery";
 import {
   BRANCH_LABELS,
   CATEGORY_LABELS,
@@ -13,11 +11,6 @@ import {
 } from "../lib/incidents";
 import { ErrorState } from "./ErrorState";
 
-type PanelState =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "ready"; summary: IncidentSummary };
-
 function Group({ title, counts, labels, total }: {
   title: string;
   counts: Record<string, number> | undefined;
@@ -27,7 +20,7 @@ function Group({ title, counts, labels, total }: {
   const entries = Object.entries(counts ?? {});
   return (
     <section className="summary-group">
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       {entries.length === 0 ? <p className="summary-empty">Sin datos.</p> : (
         <ul>
           {entries.map(([key, value]) => (
@@ -48,43 +41,28 @@ function Group({ title, counts, labels, total }: {
  * a slow or failed summary never blocks or breaks the incident list next to it.
  */
 export function IncidentSummaryPanel({ refreshKey = 0 }: { refreshKey?: number }) {
-  const [state, setState] = useState<PanelState>({ kind: "loading" });
-  const [retryKey, setRetryKey] = useState(0);
+  const { state, retry } = useApiQuery<IncidentSummary>("/api/incidents/summary", "No se pudieron cargar las métricas.", refreshKey);
 
-  useEffect(() => {
-    let active = true;
-    apiFetch("/api/incidents/summary")
-      .then((response) => parseResponse<IncidentSummary>(response, "No se pudieron cargar las métricas."))
-      .then((summary) => {
-        if (active) setState({ kind: "ready", summary });
-      })
-      .catch((error: unknown) => {
-        if (active) setState({ kind: "error", message: toUserMessage(error, "No se pudieron cargar las métricas.") });
-      });
-    return () => { active = false; };
-  }, [refreshKey, retryKey]);
-
-  if (state.kind === "loading") {
+  if (state.status === "loading") {
     return <section className="summary-panel summary-loading" aria-live="polite"><span className="incident-spinner" aria-hidden="true" /> Cargando métricas…</section>;
   }
-  if (state.kind === "error") {
+  if (state.status === "error") {
     return (
       <section className="summary-panel">
-        <ErrorState compact title="Métricas no disponibles" message={state.message}
-          onRetry={() => { setState({ kind: "loading" }); setRetryKey((key) => key + 1); }} />
+        <ErrorState compact title="Métricas no disponibles" message={state.message} onRetry={retry} />
       </section>
     );
   }
 
-  const { summary } = state;
+  const summary = state.data;
   const total = summary?.total ?? 0;
   return (
     <section className="summary-panel" aria-label="Resumen de incidencias">
       <div className="summary-total"><span>Total de incidencias</span><strong>{total}</strong></div>
-      <Group title="Por estado" counts={summary.by_status} labels={STATUS_LABELS} total={total} />
-      <Group title="Por categoría" counts={summary.by_category} labels={CATEGORY_LABELS} total={total} />
-      <Group title="Por origen" counts={summary.by_origin} labels={ORIGIN_LABELS} total={total} />
-      <Group title="Por sucursal" counts={summary.by_branch} labels={BRANCH_LABELS} total={total} />
+      <Group title="Por estado" counts={summary?.by_status} labels={STATUS_LABELS} total={total} />
+      <Group title="Por categoría" counts={summary?.by_category} labels={CATEGORY_LABELS} total={total} />
+      <Group title="Por origen" counts={summary?.by_origin} labels={ORIGIN_LABELS} total={total} />
+      <Group title="Por sucursal" counts={summary?.by_branch} labels={BRANCH_LABELS} total={total} />
     </section>
   );
 }

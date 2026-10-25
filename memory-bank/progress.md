@@ -13,8 +13,15 @@
 - Rutas de proveedores protegidas con bearer token; `uv run pytest tests` pasa con 8 pruebas, incluyendo tokens inválidos/expirados y permisos.
 - Backoffice y Talent Pipeline Tracker conectados a JWT: login, registro, perfil, logout, guard cliente y manejo global de `401`; website público sin cambios.
 - `npm run lint` y `npm run build` pasan en ambas aplicaciones internas con las rutas `/login`, `/register` y `/account/profile`.
+- Ramas previas integradas en `chore/integrate-previous-milestones`: auth + análisis de incidencias CSV en una sola base.
+- Auditoría de manejo de errores (`docs/error-handling-audit.md`): formato de error único en la API, tres estados de UI con reintento y scripts con `exit 1`.
+- Gestor centralizado de incidencias según `company-BRIEFING.md`: modelo, seed idempotente (95/5), endpoints `/api/incidents` y páginas de alta, listado y resumen.
+- Monorepo dockerizado: `docker-compose.yml` (ui + api en `trackflow-net`), override de producción y `docs/docker.md`.
+- Auditoría de rendimiento con Lighthouse en producción (`AUDIT.md`, `REPORT.md`, `audit/`): fuentes locales, home como Server Component, contraste AA, `useFormFields` y `useApiQuery`.
 
 ## Siguiente
+- Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.
+- Paginación en servidor para `/incidents` y migrar proveedores a `useApiQuery`.
 - Conectar formularios a un servicio bajo `services/`.
 - Persistir solicitudes y calcular KPIs reales.
 - Añadir pruebas de validacion para email, telefono, pais y volumen.
