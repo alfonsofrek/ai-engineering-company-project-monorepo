@@ -1,7 +1,9 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { apiFetch, errorMessage } from "../../lib/auth-client";
+import { apiFetch } from "../../lib/auth-client";
+import { parseResponse, toUserMessage } from "../../lib/http";
+import { ErrorState } from "../../components/ErrorState";
 import "./suppliers.css";
 
 type Supplier = {
@@ -39,8 +41,9 @@ const categoryLabels: Record<string, string> = {
   cleaning_and_facilities: "Limpieza e instalaciones",
 };
 
-function formatRate(rate: number, currency: Supplier["currency"]) {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency }).format(rate);
+function formatRate(rate: number | null | undefined, currency: Supplier["currency"] | undefined) {
+  if (typeof rate !== "number" || !Number.isFinite(rate)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: currency ?? "EUR" }).format(rate);
 }
 
 function formatCountry(country: Supplier["country"]) {
@@ -61,6 +64,9 @@ export default function SuppliersPage() {
   const [rateDrafts, setRateDrafts] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [busySupplierId, setBusySupplierId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -69,17 +75,28 @@ export default function SuppliersPage() {
     if (country) params.set("country", country);
     if (category) params.set("category", category);
     const query = params.toString();
+    let active = true;
     apiFetch(`/api/suppliers${query ? `?${query}` : ""}`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(await errorMessage(await response.json(), "No se pudo cargar el directorio."));
-        return response.json() as Promise<Supplier[]>;
+      .then((response) => parseResponse<Supplier[]>(response, "No se pudo cargar el directorio."))
+      .then((data) => {
+        if (active) setSuppliers(Array.isArray(data) ? data : []);
       })
-      .then(setSuppliers)
       .catch((requestError: unknown) => {
-        setError(requestError instanceof Error ? requestError.message : "Error de conexion con la API.");
+        if (active) setLoadError(toUserMessage(requestError, "No se pudo cargar el directorio de proveedores."));
       })
-      .finally(() => setIsLoading(false));
-  }, [country, category]);
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    // Ignore responses that arrive after the filters changed again.
+    return () => { active = false; };
+  }, [country, category, reloadKey]);
+
+  // Loading state is switched on by whatever triggers a new request (filters, retry),
+  // so the effect only reacts to the response.
+  function startReload() {
+    setIsLoading(true);
+    setLoadError("");
+  }
 
   function toggleCategory(selected: string) {
     setNewCategories((current) => current.includes(selected)
@@ -108,10 +125,9 @@ export default function SuppliersPage() {
           notes: notes.trim() || undefined,
         }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo registrar el proveedor."));
+      const body = await parseResponse<Supplier>(response, "No se pudo registrar el proveedor.");
       if ((!country || country === newCountry) && (!category || newCategories.includes(category))) {
-        setSuppliers((current) => [body as Supplier, ...current]);
+        setSuppliers((current) => [body, ...current]);
       }
       setName("");
       setNewCategories([]);
@@ -121,7 +137,7 @@ export default function SuppliersPage() {
       setNotes("");
       setNotice("Proveedor registrado.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error de conexion con la API.");
+      setError(toUserMessage(requestError, "No se pudo completar la acción. Inténtalo de nuevo."));
     } finally {
       setIsCreating(false);
     }
@@ -129,6 +145,7 @@ export default function SuppliersPage() {
 
   async function updateRate(supplier: Supplier) {
     const value = Number(rateDrafts[supplier.id] ?? supplier.rate_per_shipment);
+    setBusySupplierId(supplier.id);
     setError("");
     setNotice("");
     try {
@@ -137,9 +154,8 @@ export default function SuppliersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rate_per_shipment: value }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo actualizar la tarifa."));
-      setSuppliers((current) => current.map((item) => item.id === supplier.id ? body as Supplier : item));
+      const body = await parseResponse<Supplier>(response, "No se pudo actualizar la tarifa.");
+      setSuppliers((current) => current.map((item) => item.id === supplier.id ? body : item));
       setRateDrafts((current) => {
         const drafts = { ...current };
         delete drafts[supplier.id];
@@ -147,11 +163,14 @@ export default function SuppliersPage() {
       });
       setNotice(`Tarifa de ${supplier.name} actualizada.`);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error de conexion con la API.");
+      setError(toUserMessage(requestError, "No se pudo completar la acción. Inténtalo de nuevo."));
+    } finally {
+      setBusySupplierId(null);
     }
   }
 
   async function toggleStatus(supplier: Supplier) {
+    setBusySupplierId(supplier.id);
     setError("");
     setNotice("");
     try {
@@ -160,12 +179,13 @@ export default function SuppliersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: supplier.status === "active" ? "suspended" : "active" }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo cambiar el estado."));
-      setSuppliers((current) => current.map((item) => item.id === supplier.id ? body as Supplier : item));
-      setNotice(`${supplier.name}: ${body.status === "active" ? "activo" : "suspendido"}.`);
+      const body = await parseResponse<Supplier>(response, "No se pudo cambiar el estado.");
+      setSuppliers((current) => current.map((item) => item.id === supplier.id ? body : item));
+      setNotice(`${supplier.name}: ${body?.status === "active" ? "activo" : "suspendido"}.`);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error de conexion con la API.");
+      setError(toUserMessage(requestError, "No se pudo completar la acción. Inténtalo de nuevo."));
+    } finally {
+      setBusySupplierId(null);
     }
   }
 
@@ -179,28 +199,29 @@ export default function SuppliersPage() {
       <section className="supplier-intro">
         <div><h2>Red operativa</h2><p>Consulta cobertura, servicios y tarifas vigentes de los partners de TrackFlow.</p></div>
         <div className="supplier-filters">
-          <label>País<select value={country} onChange={(event) => setCountry(event.target.value)}><option value="">Todos</option><option value="USA">Estados Unidos</option><option value="Spain">España</option></select></label>
-          <label>Categoria<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Todas</option>{categories.map((item) => <option key={item} value={item}>{categoryLabels[item]}</option>)}</select></label>
+          <label>País<select value={country} onChange={(event) => { startReload(); setCountry(event.target.value); }}><option value="">Todos</option><option value="USA">Estados Unidos</option><option value="Spain">España</option></select></label>
+          <label>Categoria<select value={category} onChange={(event) => { startReload(); setCategory(event.target.value); }}><option value="">Todas</option>{categories.map((item) => <option key={item} value={item}>{categoryLabels[item]}</option>)}</select></label>
         </div>
       </section>
 
-      {error && <p className="supplier-alert" role="alert">{error}</p>}
+      {error && <ErrorState compact title="No se pudo completar la acción" message={error} />}
       {notice && <p className="supplier-notice" role="status">{notice}</p>}
 
       <section className="supplier-list" aria-label="Listado de proveedores">
         <div className="supplier-table-wrap"><table><thead><tr><th>PROVEEDOR / CONTACTO</th><th>PAÍS</th><th>ZONA</th><th>CATEGORÍAS</th><th>TARIFA / UNIDAD</th><th>ESTADO</th><th>ACTUALIZADO</th></tr></thead>
           <tbody>
-            {isLoading && <tr><td colSpan={7} className="supplier-empty">Cargando directorio...</td></tr>}
-            {!isLoading && suppliers.map((supplier) => <tr key={supplier.id}>
+            {isLoading && <tr><td colSpan={7} className="supplier-empty" aria-live="polite">Cargando directorio...</td></tr>}
+            {!isLoading && loadError && <tr><td colSpan={7}><ErrorState title="No se pudo cargar el directorio" message={loadError} onRetry={() => { startReload(); setReloadKey((key) => key + 1); }} /></td></tr>}
+            {!isLoading && !loadError && suppliers.map((supplier) => <tr key={supplier.id}>
               <td><strong>{supplier.name}</strong>{supplier.contact_email && <a className="supplier-contact" href={`mailto:${supplier.contact_email}`}>{supplier.contact_email}</a>}{supplier.notes && <small className="supplier-notes" title={supplier.notes}>{supplier.notes}</small>}<small className="supplier-id">ID {supplier.id}</small></td>
               <td><span className="country-dot" />{formatCountry(supplier.country)}<small className="supplier-id">{supplier.currency}</small></td>
               <td>{supplier.service_zone ?? <span className="supplier-unspecified">Sin zona definida</span>}</td>
-              <td><div className="service-tags">{supplier.categories.map((item) => <span key={item}>{categoryLabels[item] ?? item}</span>)}</div></td>
-              <td><div className="rate-control"><input aria-label={`Nueva tarifa para ${supplier.name}`} type="number" min="0.01" step="0.01" value={rateDrafts[supplier.id] ?? supplier.rate_per_shipment} onChange={(event) => setRateDrafts((current) => ({ ...current, [supplier.id]: event.target.value }))} /><button type="button" onClick={() => updateRate(supplier)}>Guardar</button></div><small className="rate-current">Vigente: {formatRate(supplier.rate_per_shipment, supplier.currency)}</small></td>
-              <td><button type="button" className={`supplier-status ${supplier.status}`} onClick={() => toggleStatus(supplier)} aria-label={`${supplier.status === "active" ? "Suspender" : "Activar"} a ${supplier.name}`}>{supplier.status === "active" ? "Activo" : "Suspendido"}</button></td>
-              <td><time dateTime={supplier.updated_at}>{new Date(supplier.updated_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</time></td>
+              <td><div className="service-tags">{(supplier.categories ?? []).map((item) => <span key={item}>{categoryLabels[item] ?? item}</span>)}</div></td>
+              <td><div className="rate-control"><input aria-label={`Nueva tarifa para ${supplier.name}`} type="number" min="0.01" step="0.01" value={rateDrafts[supplier.id] ?? supplier.rate_per_shipment} onChange={(event) => setRateDrafts((current) => ({ ...current, [supplier.id]: event.target.value }))} /><button type="button" disabled={busySupplierId === supplier.id} onClick={() => updateRate(supplier)}>{busySupplierId === supplier.id ? "…" : "Guardar"}</button></div><small className="rate-current">Vigente: {formatRate(supplier.rate_per_shipment, supplier.currency)}</small></td>
+              <td><button type="button" disabled={busySupplierId === supplier.id} className={`supplier-status ${supplier.status}`} onClick={() => toggleStatus(supplier)} aria-label={`${supplier.status === "active" ? "Suspender" : "Activar"} a ${supplier.name}`}>{supplier.status === "active" ? "Activo" : "Suspendido"}</button></td>
+              <td>{supplier.updated_at ? <time dateTime={supplier.updated_at}>{new Date(supplier.updated_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</time> : "—"}</td>
             </tr>)}
-            {!isLoading && suppliers.length === 0 && <tr><td colSpan={7} className="supplier-empty">No hay proveedores para estos filtros.</td></tr>}
+            {!isLoading && !loadError && suppliers.length === 0 && <tr><td colSpan={7} className="supplier-empty">No hay proveedores para estos filtros.</td></tr>}
           </tbody>
         </table></div>
       </section>

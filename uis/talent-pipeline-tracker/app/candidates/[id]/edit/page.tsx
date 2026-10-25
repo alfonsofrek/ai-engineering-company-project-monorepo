@@ -4,10 +4,11 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CandidateForm } from "@/components/CandidateForm";
-import { ApiError, getCandidateById, updateCandidate } from "@/lib/services/candidates";
+import { getCandidateById, updateCandidate } from "@/lib/services/candidates";
 import { Candidate, CandidateInput } from "@/types";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
+import { toUserMessage } from "@/lib/http";
 
 export default function EditCandidatePage({
   params,
@@ -19,6 +20,7 @@ export default function EditCandidatePage({
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +34,7 @@ export default function EditCandidatePage({
         }
       } catch (error) {
         if (!cancelled) {
-          setErrorMessage(error instanceof ApiError ? error.message : "No se pudo cargar el candidato.");
+          setErrorMessage(toUserMessage(error, "No se pudo cargar el candidato."));
           setStatus("error");
         }
       }
@@ -41,7 +43,7 @@ export default function EditCandidatePage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   async function handleSubmit(input: CandidateInput) {
     await updateCandidate(id, input);
@@ -60,7 +62,7 @@ export default function EditCandidatePage({
         <p className="mb-6 text-sm text-slate-500">Corrige los datos de la postulación.</p>
 
         {status === "loading" && <LoadingState label="Cargando candidato..." />}
-        {status === "error" && <ErrorState message={errorMessage} />}
+        {status === "error" && <ErrorState title="No se pudo cargar el candidato" message={errorMessage} onRetry={() => setReloadKey((key) => key + 1)} />}
         {status === "success" && candidate && (
           <CandidateForm
             submitLabel="Guardar cambios"

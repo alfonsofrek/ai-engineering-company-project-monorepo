@@ -1,12 +1,13 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { apiFetch, AuthMe, errorMessage } from "../../../lib/auth-client";
+import { apiFetch, AuthMe, Profile } from "../../../lib/auth-client";
+import { parseResponse, SUPPORT_EMAIL, toUserMessage } from "../../../lib/http";
 import { useAuth } from "../../../components/AuthProvider";
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  if (!user) return null;
+  if (!user) return <p className="auth-loading" aria-live="polite">Cargando perfil…</p>;
   return <ProfileEditor key={user.email} user={user} />;
 }
 
@@ -29,14 +30,13 @@ function ProfileEditor({ user }: { user: AuthMe }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name || null, phone: phone || null, address: address || null }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo guardar el perfil."));
+      const body = await parseResponse<Profile>(response, "No se pudo guardar el perfil.");
       setName(body.name ?? "");
       setPhone(body.phone ?? "");
       setAddress(body.address ?? "");
       setNotice("Perfil actualizado.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "No se pudo conectar con el servicio.");
+      setError(toUserMessage(requestError, "No se pudo guardar el perfil. Inténtalo de nuevo."));
     } finally {
       setIsSaving(false);
     }
@@ -52,7 +52,7 @@ function ProfileEditor({ user }: { user: AuthMe }) {
         <label>Nombre<input autoComplete="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} /></label>
         <label>Teléfono<input autoComplete="tel" type="tel" maxLength={40} value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
         <label>Dirección<input autoComplete="street-address" maxLength={240} value={address} onChange={(event) => setAddress(event.target.value)} /></label>
-        {error && <p className="auth-alert" role="alert">{error}</p>}
+        {error && <p className="auth-alert" role="alert">{error} Si el problema continúa, escribe a <a href={`mailto:${SUPPORT_EMAIL}`}>soporte</a>.</p>}
         {notice && <p className="profile-notice" role="status">{notice}</p>}
         <button className="auth-submit profile-submit" type="submit" disabled={isSaving}>{isSaving ? "Guardando…" : "Guardar cambios"}</button>
       </form>

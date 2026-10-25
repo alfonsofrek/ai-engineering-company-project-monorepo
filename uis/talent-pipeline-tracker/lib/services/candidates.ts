@@ -6,47 +6,28 @@ import type {
   Note,
 } from "@/types";
 import { authFetch } from "@/lib/auth-client";
+import { parseResponse } from "@/lib/http";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export class ApiError extends Error {
-  constructor(message: string, public status?: number) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+export { ApiError } from "@/lib/http";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  let response: Response;
-  try {
-    response = await authFetch(`${API_URL}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-  } catch {
-    throw new ApiError("No se pudo conectar con la API de Talent Pipeline Tracker.");
-  }
-
-  if (!response.ok) {
-    let message = `Error ${response.status} al comunicarse con la API.`;
-    try {
-      const body = await response.json();
-      if (body?.detail) {
-        message = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
-      }
-    } catch {
-      // ignore body parse errors
-    }
-    throw new ApiError(message, response.status);
-  }
+  // Network failures (fetch rejects) are mapped by toUserMessage in the UI;
+  // HTTP failures become ApiError with a readable message — never a raw status code or JSON dump.
+  const response = await authFetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
 
   if (response.status === 204) {
+    if (!response.ok) await parseResponse<never>(response, "No se pudo completar la operación.");
     return undefined as T;
   }
-  return (await response.json()) as T;
+  return parseResponse<T>(response, "No se pudo completar la operación con la API de candidatos.");
 }
 
 export interface RecordsQuery {

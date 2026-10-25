@@ -2,11 +2,12 @@
 
 import { type FormEvent, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { authFetch, AuthMe, errorMessage } from "@/lib/auth-client";
+import { authFetch, AuthMe } from "@/lib/auth-client";
+import { parseResponse, SUPPORT_EMAIL, toUserMessage } from "@/lib/http";
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  if (!user) return null;
+  if (!user) return <p className="py-10 text-slate-500" role="status">Cargando perfil…</p>;
   return <ProfileEditor key={user.email} user={user} />;
 }
 
@@ -29,14 +30,13 @@ function ProfileEditor({ user }: { user: AuthMe }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name || null, phone: phone || null, address: address || null }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo guardar el perfil."));
+      const body = await parseResponse<AuthMe["profile"]>(response, "No se pudo guardar el perfil.");
       setName(body.name ?? "");
       setPhone(body.phone ?? "");
       setAddress(body.address ?? "");
       setNotice("Perfil actualizado.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "No se pudo conectar con el servicio.");
+      setError(toUserMessage(requestError, "No se pudo guardar el perfil. Inténtalo de nuevo."));
     } finally {
       setBusy(false);
     }
@@ -50,7 +50,7 @@ function ProfileEditor({ user }: { user: AuthMe }) {
       <label className="grid gap-1.5 text-sm font-medium">Nombre<input className="auth-input" autoComplete="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label className="grid gap-1.5 text-sm font-medium">Teléfono<input className="auth-input" autoComplete="tel" type="tel" maxLength={40} value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
       <label className="grid gap-1.5 text-sm font-medium">Dirección<input className="auth-input" autoComplete="street-address" maxLength={240} value={address} onChange={(event) => setAddress(event.target.value)} /></label>
-      {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+      {error && <p className="text-sm text-red-700" role="alert">{error} Si el problema continúa, escribe a <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>soporte</a>.</p>}
       {notice && <p className="text-sm text-emerald-700" role="status">{notice}</p>}
       <button className="auth-button justify-self-start" disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</button>
     </form>

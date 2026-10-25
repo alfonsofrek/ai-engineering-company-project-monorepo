@@ -2,6 +2,8 @@
 
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import "./analysis.css";
+import { ErrorState } from "../../components/ErrorState";
+import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
 
 type IncidentAnalysis = {
   metrics: {
@@ -19,15 +21,17 @@ type IncidentAnalysis = {
   satisfactionScores: Record<string, number>;
 };
 
-function formatCount(value: number) {
-  return value.toLocaleString("es-MX");
+function formatCount(value: number | null | undefined) {
+  return (typeof value === "number" && Number.isFinite(value) ? value : 0).toLocaleString("es-MX");
 }
 
-function Breakdown({ title, counts, total }: { title: string; counts: Record<string, number>; total: number }) {
+function Breakdown({ title, counts, total }: { title: string; counts?: Record<string, number> | null; total?: number | null }) {
+  const entries = Object.entries(counts ?? {});
   return (
     <section>
       <h3>{title}</h3>
-      <ul>{Object.entries(counts).map(([name, count]) => (
+      {entries.length === 0 && <p>Sin datos para este desglose.</p>}
+      <ul>{entries.map(([name, count]) => (
         <li key={name}>
           <span>{name.replaceAll("_", " ")}</span>
           <strong>{formatCount(count)} <small>{total ? `(${(count / total * 100).toFixed(1)}%)` : "(0.0%)"}</small></strong>
@@ -41,6 +45,7 @@ export default function IncidentsAnalysisPage() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<IncidentAnalysis | null>(null);
   const [error, setError] = useState("");
+  const [failedAction, setFailedAction] = useState<"analyze" | "export" | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -49,8 +54,8 @@ export default function IncidentsAnalysisPage() {
     setError("");
   }
 
-  async function analyze(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function analyze(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (!file) {
       setError("Selecciona un archivo CSV para continuar.");
       return;
@@ -58,6 +63,7 @@ export default function IncidentsAnalysisPage() {
 
     setIsAnalyzing(true);
     setError("");
+    setFailedAction(null);
     setResult(null);
     const formData = new FormData();
     formData.append("file", file);
@@ -67,13 +73,12 @@ export default function IncidentsAnalysisPage() {
         method: "POST",
         body: formData,
       });
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body.detail ?? "No se pudo analizar el archivo.");
-      }
-      setResult(body as IncidentAnalysis);
+      const body = await parseResponse<IncidentAnalysis>(response, "No se pudo analizar el archivo.");
+      if (!body?.metrics) throw new ApiError("El servidor ha devuelto un análisis incompleto. Inténtalo de nuevo.", 502);
+      setResult(body);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error de conexion con la API.");
+      setFailedAction("analyze");
+      setError(toUserMessage(requestError, "No se pudo analizar el archivo. Comprueba que es un CSV válido e inténtalo de nuevo."));
     } finally {
       setIsAnalyzing(false);
     }
@@ -82,10 +87,12 @@ export default function IncidentsAnalysisPage() {
   async function exportResults() {
     setIsExporting(true);
     setError("");
+    setFailedAction(null);
     try {
       const response = await fetch("/api/incidents/results/export");
       if (!response.ok) {
-        throw new Error("No se pudieron descargar los resultados.");
+        // Reuse the shared mapping so a 404 or 500 gets a readable explanation.
+        await parseResponse<unknown>(response, "No se pudieron descargar los resultados.");
       }
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
@@ -94,7 +101,8 @@ export default function IncidentsAnalysisPage() {
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Error al exportar resultados.");
+      setFailedAction("export");
+      setError(toUserMessage(requestError, "No se pudieron descargar los resultados. Inténtalo de nuevo."));
     } finally {
       setIsExporting(false);
     }
@@ -134,7 +142,12 @@ export default function IncidentsAnalysisPage() {
         </div>
       </form>
 
-      {error && <p className="analysis-alert" role="alert">{error}</p>}
+      {isAnalyzing && <p className="analysis-loading" aria-live="polite">Analizando el archivo…</p>}
+      {error && <ErrorState
+        title={failedAction === "export" ? "No se pudo descargar el CSV" : "No se pudo completar el análisis"}
+        message={error}
+        onRetry={failedAction === "export" ? exportResults : failedAction === "analyze" ? () => analyze() : undefined}
+      />}
 
       {result && (
         <section className="analysis-results" aria-live="polite">
@@ -149,26 +162,26 @@ export default function IncidentsAnalysisPage() {
           </div>
 
           <div className="analysis-metrics">
-            <article><span>Registros procesados</span><strong>{formatCount(result.metrics.total)}</strong></article>
-            <article><span>Registros validos</span><strong>{formatCount(result.metrics.valid)}</strong></article>
-            <article><span>Registros invalidos</span><strong>{formatCount(result.metrics.invalid)}</strong></article>
-            <article><span>Puntajes en cerrados</span><strong>{formatCount(result.metrics.scoredClosed)} / {formatCount(result.metrics.closed)}</strong></article>
-            <article><span>Satisfaccion media</span><strong>{result.metrics.averageSatisfaction?.toFixed(2) ?? "N/A"} / 5</strong></article>
+            <article><span>Registros procesados</span><strong>{formatCount(result.metrics?.total)}</strong></article>
+            <article><span>Registros validos</span><strong>{formatCount(result.metrics?.valid)}</strong></article>
+            <article><span>Registros invalidos</span><strong>{formatCount(result.metrics?.invalid)}</strong></article>
+            <article><span>Puntajes en cerrados</span><strong>{formatCount(result.metrics?.scoredClosed)} / {formatCount(result.metrics?.closed)}</strong></article>
+            <article><span>Satisfaccion media</span><strong>{result.metrics?.averageSatisfaction?.toFixed(2) ?? "N/A"} / 5</strong></article>
           </div>
 
           <div className="analysis-breakdowns">
             <section>
               <h3>Registros invalidos por motivo</h3>
               <p>Un registro puede activar mas de una regla de validacion.</p>
-              <ul>{Object.entries(result.errors).filter(([, issue]) => issue.count > 0).map(([key, issue]) => (
-                <li key={key}><span>{issue.label}</span><strong>{formatCount(issue.count)}</strong></li>
+              <ul>{Object.entries(result.errors ?? {}).filter(([, issue]) => (issue?.count ?? 0) > 0).map(([key, issue]) => (
+                <li key={key}><span>{issue?.label ?? key}</span><strong>{formatCount(issue?.count)}</strong></li>
               ))}</ul>
-              {result.metrics.invalid === 0 && <p>No hay registros invalidos.</p>}
+              {(result.metrics?.invalid ?? 0) === 0 && <p>No hay registros invalidos.</p>}
             </section>
-            <Breakdown title="Incidencias por categoria" counts={result.categories} total={result.metrics.valid} />
-            <Breakdown title="Incidencias por estado" counts={result.statuses} total={result.metrics.valid} />
-            <Breakdown title="Incidencias por pais" counts={result.countries} total={result.metrics.valid} />
-            <Breakdown title="Puntajes de satisfaccion (cerrados)" counts={result.satisfactionScores} total={result.metrics.scoredClosed} />
+            <Breakdown title="Incidencias por categoria" counts={result.categories} total={result.metrics?.valid} />
+            <Breakdown title="Incidencias por estado" counts={result.statuses} total={result.metrics?.valid} />
+            <Breakdown title="Incidencias por pais" counts={result.countries} total={result.metrics?.valid} />
+            <Breakdown title="Puntajes de satisfaccion (cerrados)" counts={result.satisfactionScores} total={result.metrics?.scoredClosed} />
           </div>
         </section>
       )}

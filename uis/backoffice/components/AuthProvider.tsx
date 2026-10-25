@@ -3,17 +3,21 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, AuthMe, TOKEN_KEY } from "../lib/auth-client";
+import { ApiError, parseResponse, toUserMessage } from "../lib/http";
 
-type SessionStatus = "checking" | "authenticated" | "public" | "unauthenticated";
+type SessionStatus = "checking" | "authenticated" | "public" | "unauthenticated" | "error";
 type AuthContextValue = {
   status: SessionStatus;
   user: AuthMe | null;
+  errorMessage: string;
+  retry: () => void;
   logout: () => void;
 };
 type SessionState = {
   pathname: string;
   status: SessionStatus;
   user: AuthMe | null;
+  errorMessage?: string;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const status = session.pathname === pathname ? session.status : "checking";
   const user = session.pathname === pathname ? session.user : null;
+  const errorMessage = session.pathname === pathname ? session.errorMessage ?? "" : "";
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -56,23 +62,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     apiFetch("/api/auth/me")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("La sesión ya no es válida.");
-        return response.json() as Promise<AuthMe>;
-      })
+      .then((response) => parseResponse<AuthMe>(response, "No se pudo comprobar tu sesión."))
       .then((currentUser) => {
         if (!active) return;
         setSession({ pathname, status: "authenticated", user: currentUser });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!active) return;
-        localStorage.removeItem(TOKEN_KEY);
-        setSession({ pathname, status: "unauthenticated", user: null });
-        router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
+        // Only an explicit 401/403 means the session is invalid. A network failure or
+        // a 5xx must not log the user out: they get an error screen with a retry.
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          localStorage.removeItem(TOKEN_KEY);
+          setSession({ pathname, status: "unauthenticated", user: null });
+          router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
+          return;
+        }
+        setSession({
+          pathname,
+          status: "error",
+          user: null,
+          errorMessage: toUserMessage(error, "No se pudo comprobar tu sesión."),
+        });
       });
 
     return () => { active = false; };
-  }, [pathname, router]);
+  }, [pathname, router, attempt]);
 
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
@@ -80,7 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/login");
   }
 
-  return <AuthContext.Provider value={{ status, user, logout }}>{children}</AuthContext.Provider>;
+  function retry() {
+    setSession({ pathname, status: "checking", user: null });
+    setAttempt((current) => current + 1);
+  }
+
+  return <AuthContext.Provider value={{ status, user, errorMessage, retry, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

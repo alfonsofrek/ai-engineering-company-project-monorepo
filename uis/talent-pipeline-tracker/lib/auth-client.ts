@@ -23,18 +23,3 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
   }
   return response;
 }
-
-export function errorMessage(body: unknown, fallback: string) {
-  if (typeof body === "object" && body !== null && "detail" in body) {
-    const detail = body.detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) {
-      return detail.map((issue) => {
-        if (typeof issue !== "object" || issue === null) return String(issue);
-        const field = Array.isArray(issue.loc) ? String(issue.loc.at(-1) ?? "") : "";
-        return `${field ? `${field}: ` : ""}${String(issue.msg ?? "Valor inválido")}`;
-      }).join(" ");
-    }
-  }
-  return fallback;
-}
