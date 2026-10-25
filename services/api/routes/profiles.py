@@ -11,7 +11,7 @@ router = APIRouter(prefix="/profiles", tags=["profiles"])
 def read_my_profile(current_user: UserResponse = Depends(get_current_user)) -> ProfileResponse:
     profile = users.get_profile_by_user_id(current_user.id)
     if profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found.")
+        raise HTTPException(status_code=404, detail="No se ha encontrado el perfil de esta cuenta.")
     return ProfileResponse.model_validate(profile)
 
 
@@ -25,5 +25,5 @@ def update_my_profile(
         payload.model_dump(exclude_unset=True),
     )
     if profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found.")
+        raise HTTPException(status_code=404, detail="No se ha encontrado el perfil de esta cuenta.")
     return ProfileResponse.model_validate(profile)

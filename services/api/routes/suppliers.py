@@ -50,7 +50,7 @@ def list_suppliers(
 def get_supplier(supplier_id: int) -> SupplierResponse:
     supplier = suppliers_table.get(doc_id=supplier_id)
     if supplier is None:
-        raise HTTPException(status_code=404, detail="Supplier not found.")
+        raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     return serialize_supplier(supplier, supplier.doc_id)
 
 
@@ -58,7 +58,7 @@ def get_supplier(supplier_id: int) -> SupplierResponse:
 def update_supplier_rate(supplier_id: int, payload: RateUpdate) -> SupplierResponse:
     supplier = suppliers_table.get(doc_id=supplier_id)
     if supplier is None:
-        raise HTTPException(status_code=404, detail="Supplier not found.")
+        raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     updated = {
         "rate_per_shipment": payload.rate_per_shipment,
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -71,7 +71,7 @@ def update_supplier_rate(supplier_id: int, payload: RateUpdate) -> SupplierRespo
 def update_supplier_status(supplier_id: int, payload: StatusUpdate) -> SupplierResponse:
     supplier = suppliers_table.get(doc_id=supplier_id)
     if supplier is None:
-        raise HTTPException(status_code=404, detail="Supplier not found.")
+        raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     updated = {"status": payload.status.value}
     if supplier["status"] != payload.status.value:
         supplier_status_history_table.insert(
@@ -91,12 +91,12 @@ def get_supplier_status_history(supplier_id: int) -> list[SupplierStatusEvent]:
     history_query = TinyQuery()
     events = supplier_status_history_table.search(history_query.supplier_id == supplier_id)
     if suppliers_table.get(doc_id=supplier_id) is None and not events:
-        raise HTTPException(status_code=404, detail="Supplier not found.")
+        raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     return [SupplierStatusEvent(id=event.doc_id, **event) for event in events]
 
 
 @router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_supplier(supplier_id: int) -> None:
     if suppliers_table.get(doc_id=supplier_id) is None:
-        raise HTTPException(status_code=404, detail="Supplier not found.")
+        raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     suppliers_table.remove(doc_ids=[supplier_id])

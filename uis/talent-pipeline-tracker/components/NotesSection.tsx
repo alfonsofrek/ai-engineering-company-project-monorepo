@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { Note } from "@/types";
-import { ApiError, createNote, deleteNote, getNotes } from "@/lib/services/candidates";
+import { createNote, deleteNote, getNotes } from "@/lib/services/candidates";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
+import { toUserMessage } from "@/lib/http";
 
 export function NotesSection({ candidateId }: { candidateId: string }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -18,15 +21,16 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
     let cancelled = false;
     async function loadNotes() {
       setStatus("loading");
+      setLoadError("");
       try {
         const data = await getNotes(candidateId);
         if (!cancelled) {
-          setNotes(data);
+          setNotes(Array.isArray(data) ? data : []);
           setStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
-          setErrorMessage(error instanceof ApiError ? error.message : "No se pudieron cargar las notas.");
+          setLoadError(toUserMessage(error, "No se pudieron cargar las notas."));
           setStatus("error");
         }
       }
@@ -35,7 +39,7 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [candidateId]);
+  }, [candidateId, reloadKey]);
 
   async function handleAddNote(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +51,7 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
       setNotes((prev) => [note, ...prev]);
       setContent("");
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : "No se pudo agregar la nota.");
+      setErrorMessage(toUserMessage(error, "No se pudo agregar la nota."));
     } finally {
       setSubmitting(false);
     }
@@ -60,7 +64,7 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
       await deleteNote(candidateId, noteId);
       setNotes((prev) => prev.filter((note) => note.id !== noteId));
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : "No se pudo eliminar la nota.");
+      setErrorMessage(toUserMessage(error, "No se pudo eliminar la nota."));
     } finally {
       setDeletingId(null);
     }
@@ -89,11 +93,14 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
 
       {errorMessage && (
         <div className="mb-3">
-          <ErrorState message={errorMessage} />
+          <ErrorState message={errorMessage} showHomeLink={false} />
         </div>
       )}
 
       {status === "loading" && <LoadingState label="Cargando notas..." />}
+      {status === "error" && (
+        <ErrorState title="No se pudieron cargar las notas" message={loadError} onRetry={() => setReloadKey((key) => key + 1)} showHomeLink={false} />
+      )}
       {status === "success" && notes.length === 0 && (
         <p className="text-sm text-slate-500">Aún no hay notas para este candidato.</p>
       )}
@@ -113,7 +120,7 @@ export function NotesSection({ candidateId }: { candidateId: string }) {
                 </button>
               </div>
               <p className="mt-1 text-xs text-slate-400">
-                {new Date(note.created_at).toLocaleString("es-ES")}
+                {note.created_at ? new Date(note.created_at).toLocaleString("es-ES") : "Fecha no disponible"}
               </p>
             </li>
           ))}

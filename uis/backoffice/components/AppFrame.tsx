@@ -4,15 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode } from "react";
 import { useAuth } from "./AuthProvider";
+import { ErrorState } from "./ErrorState";
 
 const publicPaths = new Set(["/login", "/register"]);
 
 export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { status, user, logout } = useAuth();
+  const { status, user, errorMessage, retry, logout } = useAuth();
   const isPublic = publicPaths.has(pathname);
 
   if (isPublic) return <main className="auth-main">{children}</main>;
+  if (status === "error") {
+    return <main className="auth-loading"><ErrorState title="No pudimos comprobar tu sesión" message={errorMessage} onRetry={retry} /></main>;
+  }
   if (status !== "authenticated") {
     return <main className="auth-loading" aria-live="polite">{status === "checking" ? "Comprobando sesión…" : "Redirigiendo al acceso…"}</main>;
   }

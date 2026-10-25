@@ -3,12 +3,13 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Candidate, CandidateStage, CandidateStatus } from "@/types";
-import { ApiError, getCandidateById } from "@/lib/services/candidates";
+import { getCandidateById } from "@/lib/services/candidates";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
 import { StatusBadge, StageBadge } from "@/components/Badges";
 import { StatusStageControls } from "@/components/StatusStageControls";
 import { NotesSection } from "@/components/NotesSection";
+import { toUserMessage } from "@/lib/http";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -28,6 +29,7 @@ export default function CandidateDetailPage({
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +44,7 @@ export default function CandidateDetailPage({
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
-            error instanceof ApiError ? error.message : "No se pudo cargar la información del candidato."
+            toUserMessage(error, "No se pudo cargar la información del candidato.")
           );
           setStatus("error");
         }
@@ -52,14 +54,14 @@ export default function CandidateDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   function handleStatusStageUpdated(newStatus: CandidateStatus, newStage: CandidateStage) {
     setCandidate((prev) => (prev ? { ...prev, status: newStatus, stage: newStage } : prev));
   }
 
   if (status === "loading") return <LoadingState label="Cargando candidato..." />;
-  if (status === "error") return <ErrorState message={errorMessage} />;
+  if (status === "error") return <ErrorState title="No se pudo cargar el candidato" message={errorMessage} onRetry={() => setReloadKey((key) => key + 1)} />;
   if (!candidate) return null;
 
   return (

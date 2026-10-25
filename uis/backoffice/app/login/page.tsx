@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { errorMessage, TOKEN_KEY } from "../../lib/auth-client";
+import { TOKEN_KEY } from "../../lib/auth-client";
+import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,16 +23,18 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "No se pudo iniciar sesión."));
-      localStorage.setItem(TOKEN_KEY, body.access_token as string);
+      const body = await parseResponse<{ access_token?: string }>(response, "No se pudo iniciar sesión.");
+      if (!body?.access_token) throw new ApiError("El servidor no ha devuelto una sesión válida. Inténtalo de nuevo.", 502);
+      localStorage.setItem(TOKEN_KEY, body.access_token);
       const requestedPath = new URLSearchParams(window.location.search).get("next");
       const destination = requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
         ? requestedPath
         : "/";
       router.replace(destination);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "No se pudo conectar con el servicio.");
+      setError(requestError instanceof ApiError && requestError.status === 401
+        ? "Email o contraseña incorrectos."
+        : toUserMessage(requestError, "No se pudo iniciar sesión. Inténtalo de nuevo."));
     } finally {
       setIsSubmitting(false);
     }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CandidateInput } from "@/types";
+import { ApiError, toUserMessage } from "@/lib/http";
 
 interface CandidateFormProps {
   initialValues?: Partial<CandidateInput>;
@@ -59,9 +60,13 @@ export function CandidateForm({ initialValues, submitLabel, onSubmit }: Candidat
       });
       setFeedback({ type: "success", message: "Candidato guardado correctamente." });
     } catch (error) {
+      // Show server-side validation next to the affected field when the API identifies it.
+      if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) {
+        setErrors((current) => ({ ...current, ...(error.fieldErrors as FormErrors) }));
+      }
       setFeedback({
         type: "error",
-        message: error instanceof Error ? error.message : "No se pudo guardar el candidato.",
+        message: toUserMessage(error, "No se pudo guardar el candidato. Inténtalo de nuevo."),
       });
     } finally {
       setSubmitting(false);

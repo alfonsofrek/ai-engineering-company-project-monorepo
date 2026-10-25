@@ -50,7 +50,7 @@ def create_access_token(user_id: int) -> tuple[str, int]:
 def _unauthorized() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials.",
+        detail="Tu sesión no es válida o ha caducado. Vuelve a iniciar sesión.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 

@@ -3,21 +3,17 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { errorMessage, TOKEN_KEY } from "../../lib/auth-client";
+import { TOKEN_KEY } from "../../lib/auth-client";
+import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
 
 type FieldErrors = Partial<Record<"email" | "password" | "confirm" | "name" | "phone" | "address", string>>;
 
-function validationErrors(body: unknown): FieldErrors {
-  if (typeof body !== "object" || body === null || !("detail" in body) || !Array.isArray(body.detail)) return {};
-  const errors: FieldErrors = {};
-  for (const issue of body.detail) {
-    if (typeof issue !== "object" || issue === null || !Array.isArray(issue.loc)) continue;
-    const field = String(issue.loc.at(-1) ?? "");
-    if (["email", "password", "name", "phone", "address"].includes(field)) {
-      errors[field as keyof FieldErrors] = String(issue.msg ?? "Valor inválido");
-    }
+function pickFieldErrors(errors: Record<string, string>): FieldErrors {
+  const picked: FieldErrors = {};
+  for (const field of ["email", "password", "name", "phone", "address"] as const) {
+    if (errors[field]) picked[field] = errors[field];
   }
-  return errors;
+  return picked;
 }
 
 export default function RegisterPage() {
@@ -55,10 +51,11 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const registrationBody = await registration.json();
-      if (!registration.ok) {
-        setFieldErrors(validationErrors(registrationBody));
-        throw new Error(errorMessage(registrationBody, "No se pudo crear la cuenta."));
+      try {
+        await parseResponse<unknown>(registration, "No se pudo crear la cuenta.");
+      } catch (registrationError) {
+        if (registrationError instanceof ApiError) setFieldErrors(pickFieldErrors(registrationError.fieldErrors));
+        throw registrationError;
       }
 
       const login = await fetch("/api/auth/login", {
@@ -66,12 +63,18 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: payload.email, password: payload.password }),
       });
-      const loginBody = await login.json();
-      if (!login.ok) throw new Error(errorMessage(loginBody, "La cuenta se creó, pero no se pudo iniciar sesión."));
-      localStorage.setItem(TOKEN_KEY, loginBody.access_token as string);
+      let loginBody: { access_token?: string };
+      try {
+        loginBody = await parseResponse<{ access_token?: string }>(login, "La cuenta se creó, pero no se pudo iniciar sesión.");
+      } catch {
+        // The account exists: send the user to the login screen instead of leaving them stuck here.
+        throw new ApiError("Tu cuenta se ha creado, pero no hemos podido iniciar la sesión. Entra desde «Iniciar sesión».", login.status);
+      }
+      if (!loginBody?.access_token) throw new ApiError("Tu cuenta se ha creado. Entra desde «Iniciar sesión».", 502);
+      localStorage.setItem(TOKEN_KEY, loginBody.access_token);
       router.replace("/");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "No se pudo conectar con el servicio.");
+      setError(toUserMessage(requestError, "No se pudo crear la cuenta. Inténtalo de nuevo."));
     } finally {
       setIsSubmitting(false);
     }

@@ -17,7 +17,7 @@ def login(payload: LoginRequest) -> TokenResponse:
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            detail="Email o contraseña incorrectos.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -29,7 +29,7 @@ def login(payload: LoginRequest) -> TokenResponse:
 def read_auth_me(current_user: UserResponse = Depends(get_current_user)) -> AuthMeResponse:
     profile = users.get_profile_by_user_id(current_user.id)
     if profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found.")
+        raise HTTPException(status_code=404, detail="No se ha encontrado el perfil de esta cuenta.")
     return AuthMeResponse(
         email=current_user.email,
         role=current_user.role,

@@ -6,14 +6,16 @@ import { CandidateFilters } from "@/components/CandidateFilters";
 import { CandidateTable } from "@/components/CandidateTable";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
-import { ApiError, getCandidates } from "@/lib/services/candidates";
+import { getCandidates } from "@/lib/services/candidates";
 import { Candidate } from "@/types";
+import { toUserMessage } from "@/lib/http";
 
 function CandidateListContent() {
   const searchParams = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,13 +29,13 @@ function CandidateListContent() {
           search: searchParams.get("search") ?? undefined,
         });
         if (!cancelled) {
-          setCandidates(response.data);
+          setCandidates(Array.isArray(response?.data) ? response.data : []);
           setStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
-            error instanceof ApiError ? error.message : "Ocurrió un error inesperado al cargar los candidatos."
+            toUserMessage(error, "Ocurrió un error inesperado al cargar los candidatos.")
           );
           setStatus("error");
         }
@@ -44,7 +46,7 @@ function CandidateListContent() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams]);
+  }, [searchParams, reloadKey]);
 
   return (
     <div>
@@ -56,7 +58,7 @@ function CandidateListContent() {
       </div>
       <CandidateFilters />
       {status === "loading" && <LoadingState label="Cargando candidatos..." />}
-      {status === "error" && <ErrorState message={errorMessage} />}
+      {status === "error" && <ErrorState title="No se pudieron cargar los candidatos" message={errorMessage} onRetry={() => setReloadKey((key) => key + 1)} showHomeLink={false} />}
       {status === "success" && <CandidateTable candidates={candidates} />}
     </div>
   );

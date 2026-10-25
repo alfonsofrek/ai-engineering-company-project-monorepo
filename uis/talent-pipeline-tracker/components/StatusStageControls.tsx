@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { CandidateStage, CandidateStatus, STAGE_OPTIONS, STATUS_OPTIONS } from "@/types";
-import { ApiError, patchCandidate } from "@/lib/services/candidates";
+import { patchCandidate } from "@/lib/services/candidates";
+import { toUserMessage } from "@/lib/http";
 
 interface StatusStageControlsProps {
   candidateId: string;
@@ -27,7 +28,7 @@ export function StatusStageControls({
       const updated = await patchCandidate(candidateId, { [field]: value });
       onUpdated(updated.status, updated.stage);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo actualizar el candidato.");
+      setError(toUserMessage(err, "No se pudo actualizar el candidato."));
     } finally {
       setSaving(null);
     }
