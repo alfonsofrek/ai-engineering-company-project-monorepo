@@ -1,5 +1,5 @@
 .incident-header{align-items:center;margin-bottom:28px}
-.incident-link{font-size:12px;color:var(--green);font-weight:600}
+.incident-link{font-size:12px;color:var(--green-text);font-weight:600}
 .incident-new{text-decoration:none;white-space:nowrap}
 .incident-spinner{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:incident-spin .8s linear infinite;vertical-align:-2px}
 @keyframes incident-spin{to{transform:rotate(360deg)}}
@@ -26,11 +26,11 @@
 .incident-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:26px 0 16px}
 .incident-toolbar label{display:grid;gap:6px;font-size:11px;font-weight:700;color:var(--muted)}
 .incident-toolbar select{min-height:36px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:0 10px;font:500 12px var(--font-dm-sans),sans-serif}
-.incident-clear{border:0;background:none;color:var(--green);font:600 12px var(--font-dm-sans),sans-serif;cursor:pointer;padding:8px 0}
+.incident-clear{border:0;background:none;color:var(--green-text);font:600 12px var(--font-dm-sans),sans-serif;cursor:pointer;padding:8px 0}
 .incident-loading{color:var(--muted);font-size:13px;padding:24px 0}
 .incident-empty{background:var(--panel);border:1px dashed var(--line);padding:28px;text-align:center;font-size:13px}
 .incident-empty p{color:var(--muted);margin:8px 0 14px}
-.incident-empty a,.incident-empty button{color:var(--green);font:700 12px var(--font-dm-sans),sans-serif;background:none;border:0;cursor:pointer}
+.incident-empty a,.incident-empty button{color:var(--green-text);font:700 12px var(--font-dm-sans),sans-serif;background:none;border:0;cursor:pointer}
 .incident-table-wrap{background:var(--panel);border:1px solid var(--line);overflow-x:auto}
 .incident-table-wrap table{min-width:980px}
 .incident-table-wrap td{vertical-align:top}
@@ -52,7 +52,7 @@
 .summary-total{display:grid;align-content:center;gap:6px;background:var(--ink);color:#fff}
 .summary-total span{font-size:11px;color:#a7bbb1}
 .summary-total strong{font:600 38px var(--font-space-grotesk);letter-spacing:-1px}
-.summary-group h3{font:600 13px var(--font-space-grotesk);margin:0 0 10px}
+.summary-group h2{font:600 13px var(--font-space-grotesk);margin:0 0 10px}
 .summary-group ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .summary-group li{display:grid;grid-template-columns:1fr auto;font-size:11px;color:var(--muted);gap:4px}
 .summary-group li strong{color:var(--ink);font-family:var(--font-space-grotesk)}
