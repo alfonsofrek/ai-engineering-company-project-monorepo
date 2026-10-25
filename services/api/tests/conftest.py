@@ -13,6 +13,7 @@ def api_database(tmp_path, monkeypatch):
 
     from services.api import seed, user_store
     from services.api.main import app
+    from services.api.routes import incidents as incident_routes
     from services.api.routes import suppliers as supplier_routes
 
     database = TinyDB(tmp_path / "test-api.json")
@@ -20,6 +21,8 @@ def api_database(tmp_path, monkeypatch):
     history_table = database.table("supplier_status_history")
     users_table = database.table("users")
     profiles_table = database.table("profiles")
+    incidents_table = database.table("incidents")
+    monkeypatch.setattr(incident_routes, "incidents_table", incidents_table)
     monkeypatch.setattr(supplier_routes, "suppliers_table", supplier_table)
     monkeypatch.setattr(supplier_routes, "supplier_status_history_table", history_table)
     monkeypatch.setattr(seed, "suppliers_table", supplier_table)
