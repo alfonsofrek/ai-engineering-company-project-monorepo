@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from pydantic import ValidationError
 from tinydb import Query
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -172,21 +173,41 @@ INITIAL_SUPPLIERS = [
 ]
 
 
-def main() -> None:
+def main() -> int:
     inserted = 0
+    rejected: list[str] = []
     supplier_query = Query()
     for data in INITIAL_SUPPLIERS:
-        supplier = Supplier(**data)
+        # A bad fixture row is reported and skipped; it must not abort the whole seed.
+        try:
+            supplier = Supplier(**data)
+        except ValidationError as error:
+            fields = ", ".join(str(issue["loc"][-1]) for issue in error.errors() if issue.get("loc"))
+            rejected.append(f"{data.get('name', '<sin nombre>')} (campos: {fields or 'desconocidos'})")
+            continue
+
         record = supplier.model_dump(mode="json")
-        exists = suppliers_table.contains(
-            (supplier_query.name == record["name"])
-            & (supplier_query.country == record["country"])
-        )
-        if not exists:
-            suppliers_table.insert(record)
-            inserted += 1
+        # Storage failures are critical: stop and exit non-zero so CI/shell scripts notice.
+        try:
+            exists = suppliers_table.contains(
+                (supplier_query.name == record["name"])
+                & (supplier_query.country == record["country"])
+            )
+            if not exists:
+                suppliers_table.insert(record)
+                inserted += 1
+        except OSError as error:
+            print(f"Error: no se pudo escribir en la base de datos ({error.strerror or 'error de E/S'}).", file=sys.stderr)
+            return 1
+
     print(f"Proveedores insertados: {inserted}")
+    if rejected:
+        print("Proveedores no válidos (no insertados):", file=sys.stderr)
+        for item in rejected:
+            print(f"  - {item}", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
