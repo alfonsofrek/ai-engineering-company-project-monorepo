@@ -9,3 +9,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 /services/api/data/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+__pycache__/
