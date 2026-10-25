@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/components/AuthProvider";
 
 export function Header() {
+  const { user, logout } = useAuth();
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
@@ -18,6 +22,12 @@ export function Header() {
           >
             Registrar candidato
           </Link>
+          <Link href="/account/profile" className="text-slate-600 hover:text-slate-900">
+            {user?.profile.name || "Mi perfil"}
+          </Link>
+          <button type="button" onClick={logout} className="text-slate-600 hover:text-slate-900">
+            Cerrar sesión
+          </button>
         </nav>
       </div>
     </header>
