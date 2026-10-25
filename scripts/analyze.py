@@ -157,19 +157,23 @@ def _record_errors(row: dict[str, str | None]) -> tuple[list[str], int | None]:
     return errors, score
 
 
+class CsvFormatError(ValueError):
+    """The file was readable but its structure is not the expected incident CSV."""
+
+
 def analyze_csv(path: Path) -> Analysis:
     analysis = Analysis()
     with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         if reader.fieldnames is None:
-            raise ValueError("CSV is empty or has no header.")
+            raise CsvFormatError("El CSV está vacío o no tiene fila de cabecera.")
         missing_columns = [field_name for field_name in FIELDS if field_name not in reader.fieldnames]
         if missing_columns:
-            raise ValueError("Missing required columns: " + ", ".join(missing_columns))
+            raise CsvFormatError("Faltan columnas obligatorias: " + ", ".join(missing_columns))
 
         for row in reader:
             if None in row:
-                raise ValueError(f"Row {reader.line_num} has more values than the header.")
+                raise CsvFormatError(f"La fila {reader.line_num} tiene más valores que columnas la cabecera.")
             analysis.total += 1
             errors, score = _record_errors(row)
             if errors:
@@ -257,9 +261,29 @@ def main() -> int:
     parser.add_argument("csv_path", type=Path, help="Path to the incident CSV")
     args = parser.parse_args()
 
+    # Defensive checks before touching the file, so the user gets a precise reason.
+    if not args.csv_path.exists():
+        print(f"Error: no existe el archivo {args.csv_path}", file=sys.stderr)
+        return 1
+    if not args.csv_path.is_file():
+        print(f"Error: {args.csv_path} no es un archivo", file=sys.stderr)
+        return 1
+
     try:
         analysis = analyze_csv(args.csv_path)
-    except (OSError, UnicodeError, csv.Error, ValueError) as error:
+    except PermissionError:
+        print(f"Error: sin permisos para leer {args.csv_path}", file=sys.stderr)
+        return 1
+    except OSError as error:
+        print(f"Error: no se pudo leer {args.csv_path} ({error.strerror or 'error de E/S'})", file=sys.stderr)
+        return 1
+    except UnicodeError:
+        print("Error: el archivo no está codificado en UTF-8", file=sys.stderr)
+        return 1
+    except csv.Error as error:
+        print(f"Error: formato CSV no válido ({error})", file=sys.stderr)
+        return 1
+    except CsvFormatError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
@@ -273,7 +297,7 @@ def main() -> int:
         try:
             export_csv(analysis, output_path)
         except OSError as error:
-            print(f"Error exporting results: {error}", file=sys.stderr)
+            print(f"Error: no se pudieron exportar los resultados ({error.strerror or 'error de E/S'})", file=sys.stderr)
             return 1
         print(f"Results exported to {output_path}")
     return 0
