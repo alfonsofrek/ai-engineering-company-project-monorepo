@@ -51,6 +51,13 @@ export function fieldErrorsFrom(body: unknown): Record<string, string> {
   if (typeof record.field === "string" && typeof record.message === "string") {
     errors[record.field] = record.message;
   }
+  if (Array.isArray(record.errors)) {
+    for (const issue of record.errors) {
+      if (typeof issue !== "object" || issue === null) continue;
+      const { field, message } = issue as { field?: unknown; message?: unknown };
+      if (typeof field === "string" && typeof message === "string") errors[field] = message;
+    }
+  }
   const detail = record.detail;
   if (Array.isArray(detail)) {
     for (const issue of detail) {

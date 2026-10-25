@@ -30,6 +30,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
         <Link href="/#solicitudes">Solicitudes <span>12</span></Link>
         <Link href="/#metricas">Métricas</Link>
         <Link className={pathname.startsWith("/suppliers") ? "active" : ""} href="/suppliers">Proveedores</Link>
+        <Link className={pathname === "/incidents" ? "active" : ""} href="/incidents">Incidencias</Link>
+        <Link className={pathname.startsWith("/incidents/new") ? "active" : ""} href="/incidents/new">Registrar incidencia</Link>
         <Link className={pathname.startsWith("/incidents-analysis") ? "active" : ""} href="/incidents-analysis">Análisis de incidencias</Link>
         <Link className={pathname.startsWith("/account") ? "active" : ""} href="/account/profile">Mi perfil</Link>
       </nav>

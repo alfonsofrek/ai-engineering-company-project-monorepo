@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
         destination: `${apiOrigin}/suppliers/:path*`,
       },
       {
+        // Incident manager and CSV analysis live under /api/incidents in the API as well.
+        source: "/api/incidents",
+        destination: `${apiOrigin}/api/incidents`,
+      },
+      {
+        source: "/api/incidents/:path*",
+        destination: `${apiOrigin}/api/incidents/:path*`,
+      },
+      {
         source: "/api/auth/:path*",
         destination: `${apiOrigin}/auth/:path*`,
       },
