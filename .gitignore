@@ -12,3 +12,4 @@ __pycache__/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+__pycache__/
