@@ -1,13 +1,22 @@
-import { Brand } from "../components/Brand";
-import { LeadForm } from "../components/LeadForm";
+"use client";
 
-// Server Component: the static marketing content ships as HTML with no client
-// JavaScript; only <LeadForm /> hydrates.
+import { FormEvent, useState } from "react";
+
+const initialForm = { fullName: "", companyName: "", email: "", country: "Mexico", phone: "", monthlyVolume: "" };
+
 export default function Home() {
+  const [form, setForm] = useState(initialForm);
+  const [sent, setSent] = useState(false);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSent(true);
+  }
+
   return (
     <main>
       <nav className="nav shell">
-        <Brand />
+        <a className="brand" href="#top"><span className="brand-mark">TF</span> trackflow</a>
         <div className="nav-links"><a href="#operacion">Operacion</a><a href="#onboarding">Habla con el equipo</a></div>
         <a className="nav-cta" href="#onboarding">Empezar <span aria-hidden="true">-&gt;</span></a>
       </nav>
@@ -32,9 +41,17 @@ export default function Home() {
 
       <section className="onboarding shell" id="onboarding">
         <div className="onboarding-intro"><p className="eyebrow">Tu operacion empieza aqui</p><h2>Cuanto mas sabemos,<br /><em>mejor te movemos.</em></h2><p>Comparte algunos datos de tu operacion. Nuestro equipo revisara el volumen y el pais para preparar el siguiente paso.</p><div className="field-note"><span>i</span><span>Solo trabajamos con operaciones activas en Mexico y Espana.</span></div></div>
-        <LeadForm />
+        <form className="lead-form" onSubmit={submit}>
+          <div className="form-heading"><span>01 — DATOS DE CONTACTO</span><small>* campos obligatorios</small></div>
+          <label>Nombre completo *<input required minLength={3} value={form.fullName} onChange={(e) => setForm({...form, fullName: e.target.value})} placeholder="Tu nombre" /></label>
+          <label>Empresa *<input required value={form.companyName} onChange={(e) => setForm({...form, companyName: e.target.value})} placeholder="Nombre de tu empresa" /></label>
+          <div className="form-grid"><label>Email corporativo *<input required type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} placeholder="nombre@empresa.com" /></label><label>Pais de operacion *<select value={form.country} onChange={(e) => setForm({...form, country: e.target.value})}><option>Mexico</option><option>Espana</option></select></label></div>
+          <div className="form-grid"><label>Telefono (+52 / +34) *<input required pattern="\\+(52|34)[0-9 ]{8,}" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} placeholder="+52 55 0000 0000" /></label><label>Envios mensuales estimados *<input required type="number" min="1" step="1" value={form.monthlyVolume} onChange={(e) => setForm({...form, monthlyVolume: e.target.value})} placeholder="Ej. 2500" /></label></div>
+          <button className="button button-dark" type="submit">Enviar solicitud <span>↗</span></button>
+          {sent && <p className="success" role="status">Solicitud recibida. El equipo de TrackFlow revisara tus datos.</p>}
+        </form>
       </section>
-      <footer className="footer shell"><Brand /><span>Ultima milla con criterio.</span><span>© 2026 TrackFlow</span></footer>
+      <footer className="footer shell"><a className="brand" href="#top"><span className="brand-mark">TF</span> trackflow</a><span>Ultima milla con criterio.</span><span>© 2026 TrackFlow</span></footer>
     </main>
   );
 }
