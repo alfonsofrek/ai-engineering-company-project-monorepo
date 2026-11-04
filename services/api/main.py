@@ -1,6 +1,6 @@
 import os
-
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from services.api.database import init_inventory_db
 from services.api.errors import register_error_handlers
+from services.api.routers.inventory import router as inventory_router
 from services.api.routes.auth import router as auth_router
 from services.api.routes.incidents import router as incidents_router
 from services.api.routes.incidents_analysis import router as incidents_analysis_router
@@ -18,7 +20,15 @@ from services.api.routes.profiles import router as profiles_router
 from services.api.routes.suppliers import router as suppliers_router
 from services.api.routes.users import router as users_router
 
-app = FastAPI(title="TrackFlow API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Creates the SKU / stock_entry / stock_exit tables in Supabase on startup.
+    init_inventory_db()
+    yield
+
+
+app = FastAPI(title="TrackFlow API", lifespan=lifespan)
 register_error_handlers(app)
 app.add_middleware(
     CORSMiddleware,
@@ -32,3 +42,4 @@ app.include_router(profiles_router)
 app.include_router(suppliers_router)
 app.include_router(incidents_analysis_router)
 app.include_router(incidents_router)
+app.include_router(inventory_router)
