@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from tinydb import Query as TinyQuery
 
+from services.api.cache import SUPPLIER_LIST, SUPPLIER_LIST_TTL, cache
 from services.api.database import supplier_status_history_table, suppliers_table
 from services.api.security import get_current_user
 from services.api.models import (
@@ -30,13 +31,27 @@ def create_supplier(payload: SupplierCreate) -> SupplierResponse:
     supplier = Supplier(**payload.model_dump())
     document = supplier.model_dump(mode="json")
     document_id = suppliers_table.insert(document)
+    cache.invalidate(SUPPLIER_LIST)
     return serialize_supplier(document, document_id)
 
 
 @router.get("/suppliers", response_model=list[SupplierResponse])
 def list_suppliers(
+    response: Response,
     country: SupplierCountry | None = None,
     category: SupplierCategory | None = None,
+) -> list[SupplierResponse]:
+    # The directory is the same for every authenticated user: the key is only the filters.
+    key = (country.value if country else None, category.value if category else None)
+    suppliers, cached = cache.get_or_compute(
+        SUPPLIER_LIST, key, SUPPLIER_LIST_TTL, lambda: _filtered_suppliers(country, category)
+    )
+    response.headers["X-Cache"] = "HIT" if cached else "MISS"
+    return suppliers
+
+
+def _filtered_suppliers(
+    country: SupplierCountry | None, category: SupplierCategory | None
 ) -> list[SupplierResponse]:
     suppliers = suppliers_table.all()
     if country is not None:
@@ -64,6 +79,7 @@ def update_supplier_rate(supplier_id: int, payload: RateUpdate) -> SupplierRespo
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     suppliers_table.update(updated, doc_ids=[supplier_id])
+    cache.invalidate(SUPPLIER_LIST)
     return serialize_supplier({**supplier, **updated}, supplier_id)
 
 
@@ -83,6 +99,7 @@ def update_supplier_status(supplier_id: int, payload: StatusUpdate) -> SupplierR
             }
         )
     suppliers_table.update(updated, doc_ids=[supplier_id])
+    cache.invalidate(SUPPLIER_LIST)
     return serialize_supplier({**supplier, **updated}, supplier_id)
 
 
@@ -100,3 +117,4 @@ def delete_supplier(supplier_id: int) -> None:
     if suppliers_table.get(doc_id=supplier_id) is None:
         raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
     suppliers_table.remove(doc_ids=[supplier_id])
+    cache.invalidate(SUPPLIER_LIST)
