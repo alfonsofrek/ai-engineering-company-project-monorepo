@@ -112,3 +112,43 @@ class AuthMeResponse(BaseModel):
     email: EmailStr
     role: UserRole
     profile: ProfileResponse
+
+
+def _validate_new_password(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 bytes for bcrypt.")
+    return password
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @model_validator(mode="after")
+    def password_fits_bcrypt(self) -> "ResetPasswordRequest":
+        _validate_new_password(self.new_password)
+        return self
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @model_validator(mode="after")
+    def password_fits_bcrypt(self) -> "ChangePasswordRequest":
+        _validate_new_password(self.new_password)
+        return self
+
+
+class MessageResponse(BaseModel):
+    message: str

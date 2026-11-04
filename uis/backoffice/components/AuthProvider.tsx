@@ -21,7 +21,7 @@ type SessionState = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const publicPaths = new Set(["/login", "/register"]);
+const publicPaths = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
