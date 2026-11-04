@@ -63,6 +63,27 @@ Pruebas del contrato, filtros, validaciones, persistencia y seeder:
 uv run pytest tests
 ```
 
+### Recuperación y cambio de contraseña
+
+Servicio de email: **[Resend](https://resend.com)** (funciona sin dominio propio con el remitente `onboarding@resend.dev`; en ese modo solo entrega al email con el que te registraste en Resend).
+
+| Variable | Obligatoria | Uso |
+|---|---|---|
+| `RESEND_API_KEY` | Sí, para enviar emails reales | API key de Resend |
+| `EMAIL_FROM` | No | Remitente. Por defecto `TrackFlow <onboarding@resend.dev>` |
+| `PASSWORD_RESET_URL` | No | Página del enlace. Por defecto `BACKOFFICE_ORIGIN` + `/reset-password` |
+| `PASSWORD_RESET_TOKEN_MINUTES` | No | Validez del enlace, de 15 a 60 minutos. Por defecto 30 |
+
+Sin `RESEND_API_KEY` no se envía nada: el enlace se escribe en el log del servidor para poder probar en local.
+
+- `POST /auth/forgot-password` `{ email }`: responde **siempre** `200` con el mismo mensaje, exista o no el email. Si existe, genera un token aleatorio y envía el enlace por email después de responder (así el tiempo de respuesta tampoco delata nada). Máximo 5 solicitudes por usuario y hora.
+- `POST /auth/reset-password` `{ token, new_password }`: `400` si el token no existe, ha caducado o ya se usó. Si es válido, guarda la nueva contraseña con bcrypt y marca el token como usado.
+- `POST /auth/change-password` `{ current_password, new_password }`: requiere bearer token; `400` si la contraseña actual es incorrecta.
+
+**Por qué el token no es un JWT:** un JWT con `exp` no se puede invalidar después de usarlo. Aquí el token es un valor aleatorio de 256 bits que solo viaja en el email; TinyDB guarda su hash SHA-256 (tabla `password_reset_tokens`) con `expires_at` y `used_at`. Cualquier cambio de contraseña invalida además todos los enlaces pendientes del usuario.
+
+En el backoffice: `/forgot-password`, `/reset-password?token=…` y `/account/change-password`, y el enlace "¿Olvidaste tu contraseña?" en `/login`. Capturas del flujo en [`docs/screenshots/password-reset/`](../../docs/screenshots/password-reset/).
+
 ## Evidencias
 
 - [Salida del seeder](../../docs/screenshots/supplier-seed.png)

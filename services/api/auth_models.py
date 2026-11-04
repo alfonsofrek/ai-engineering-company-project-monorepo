@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, model_validator
+
+# Passwords are taken exactly as typed: str_strip_whitespace on the models must not
+# trim them, or a password registered with surrounding spaces could never log in.
+RawPassword = Annotated[str, StringConstraints(strip_whitespace=False)]
 
 
 class UserRole(StrEnum):
@@ -16,7 +22,7 @@ class UserCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     email: EmailStr
-    password: str = Field(min_length=8, max_length=72)
+    password: RawPassword = Field(min_length=8, max_length=72)
     name: str | None = Field(default=None, min_length=1, max_length=120)
     phone: str | None = Field(default=None, max_length=40)
     address: str | None = Field(default=None, max_length=240)
@@ -32,7 +38,7 @@ class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     email: EmailStr | None = None
-    password: str | None = Field(default=None, min_length=8, max_length=72)
+    password: RawPassword | None = Field(default=None, min_length=8, max_length=72)
     role: UserRole | None = None
     is_active: bool | None = None
 
@@ -112,3 +118,43 @@ class AuthMeResponse(BaseModel):
     email: EmailStr
     role: UserRole
     profile: ProfileResponse
+
+
+def _validate_new_password(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 bytes for bcrypt.")
+    return password
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @model_validator(mode="after")
+    def password_fits_bcrypt(self) -> "ResetPasswordRequest":
+        _validate_new_password(self.new_password)
+        return self
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @model_validator(mode="after")
+    def password_fits_bcrypt(self) -> "ChangePasswordRequest":
+        _validate_new_password(self.new_password)
+        return self
+
+
+class MessageResponse(BaseModel):
+    message: str

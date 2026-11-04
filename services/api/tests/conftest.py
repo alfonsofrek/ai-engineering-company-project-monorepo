@@ -28,6 +28,9 @@ def api_database(tmp_path, monkeypatch):
     monkeypatch.setattr(seed, "suppliers_table", supplier_table)
     monkeypatch.setattr(user_store, "users_table", users_table)
     monkeypatch.setattr(user_store, "profiles_table", profiles_table)
+    from services.api import password_reset
+
+    monkeypatch.setattr(password_reset, "password_reset_tokens_table", database.table("password_reset_tokens"))
 
     with TestClient(app) as client:
         yield client, supplier_table, database, users_table, profiles_table
