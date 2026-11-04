@@ -29,6 +29,9 @@ def api_database(tmp_path, monkeypatch):
     monkeypatch.setattr(user_store, "users_table", users_table)
     monkeypatch.setattr(user_store, "profiles_table", profiles_table)
 
+    from services.api.cache import cache
+
+    cache.clear()  # the cache is process-wide; each test starts with its own empty database
     with TestClient(app) as client:
         yield client, supplier_table, database, users_table, profiles_table
 
