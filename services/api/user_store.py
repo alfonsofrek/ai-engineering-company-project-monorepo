@@ -32,8 +32,15 @@ def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     return {"id": document.doc_id, **dict(document)}
 
 
+def normalize_email(email: str) -> str:
+    """Emails are case-insensitive for login and uniqueness: Ana@X.com and ana@x.com are one account."""
+    return str(email).strip().lower()
+
+
 def get_user_by_email(email: str) -> dict[str, Any] | None:
-    document = users_table.get(Query().email == str(email))
+    wanted = normalize_email(email)
+    # Compares normalized values so accounts stored before normalization are still found.
+    document = users_table.get(Query().email.test(lambda stored: normalize_email(stored) == wanted))
     if document is None:
         return None
     return {"id": document.doc_id, **dict(document)}
@@ -62,7 +69,7 @@ def create_user(
 
     user_id = users_table.insert(
         {
-            "email": str(email),
+            "email": normalize_email(email),
             "hashed_password": hash_password(password),
             "is_active": True,
             "role": UserRole.USER.value,
@@ -89,13 +96,21 @@ def update_user(user_id: int, updates: dict[str, Any]) -> dict[str, Any] | None:
         existing = get_user_by_email(str(updates["email"]))
         if existing is not None and existing["id"] != user_id:
             raise DuplicateEmailError(str(updates["email"]))
-        updates["email"] = str(updates["email"])
-    if "password" in updates:
+        updates["email"] = normalize_email(updates["email"])
+    password_changed = "password" in updates
+    if password_changed:
         updates["hashed_password"] = hash_password(updates.pop("password"))
+        updates.setdefault("password_changed_at", datetime.now(timezone.utc).isoformat())
     if "role" in updates and updates["role"] is not None:
         updates["role"] = UserRole(updates["role"]).value
 
     users_table.update(updates, doc_ids=[user_id])
+    if password_changed:
+        # Whatever path changed the password (reset, change-password, PUT /users/{id}),
+        # reset links issued before it stop working.
+        from services.api import password_reset
+
+        password_reset.revoke_all_for_user(user_id)
     return get_user_by_id(user_id)
 
 
