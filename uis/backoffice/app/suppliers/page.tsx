@@ -1,72 +1,34 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/auth-client";
 import { parseResponse, toUserMessage } from "../../lib/http";
 import { ErrorState } from "../../components/ErrorState";
 import "./suppliers.css";
 
-type Supplier = {
-  id: number;
-  name: string;
-  country: "USA" | "Spain";
-  categories: string[];
-  rate_per_shipment: number;
-  currency: "USD" | "EUR";
-  updated_at: string;
-  status: "active" | "suspended";
-  service_zone?: string | null;
-  contact_email?: string | null;
-  notes?: string | null;
-};
+import { categories, categoryLabels, formatCountry, formatRate, type Supplier } from "../../lib/suppliers";
 
-const categories = [
-  "carrier_last_mile",
-  "carrier_international",
-  "warehouse_supplies",
-  "packaging_materials",
-  "reverse_logistics",
-  "fleet_maintenance",
-  "it_and_wms_software",
-  "cleaning_and_facilities",
-];
-const categoryLabels: Record<string, string> = {
-  carrier_last_mile: "Carrier última milla",
-  carrier_international: "Carrier internacional",
-  warehouse_supplies: "Suministros de almacén",
-  packaging_materials: "Materiales de embalaje",
-  reverse_logistics: "Logística inversa",
-  fleet_maintenance: "Mantenimiento de flota",
-  it_and_wms_software: "Software IT / WMS",
-  cleaning_and_facilities: "Limpieza e instalaciones",
-};
+const SupplierCreateForm = dynamic(() => import("../../components/SupplierCreateForm"), {
+  loading: () => <p className="supplier-empty" aria-live="polite">Cargando formulario…</p>,
+});
 
-function formatRate(rate: number | null | undefined, currency: Supplier["currency"] | undefined) {
-  if (typeof rate !== "number" || !Number.isFinite(rate)) return "—";
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: currency ?? "EUR" }).format(rate);
-}
-
-function formatCountry(country: Supplier["country"]) {
-  return country === "USA" ? "Estados Unidos" : "España";
+function normalize(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [country, setCountry] = useState("");
   const [category, setCategory] = useState("");
-  const [name, setName] = useState("");
-  const [newCountry, setNewCountry] = useState<"USA" | "Spain">("USA");
-  const [newCategories, setNewCategories] = useState<string[]>([]);
-  const [rate, setRate] = useState("");
-  const [serviceZone, setServiceZone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [notes, setNotes] = useState("");
   const [rateDrafts, setRateDrafts] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [busySupplierId, setBusySupplierId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<"name" | "rate" | "updated">("name");
+  const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -91,6 +53,27 @@ export default function SuppliersPage() {
     return () => { active = false; };
   }, [country, category, reloadKey]);
 
+  /*
+   * Client-side search, sort and totals over the loaded directory (1,500 rows with the
+   * load-test data). The page re-renders on every keystroke in a rate input (rateDrafts
+   * lives here) and on every busy/notice change; without useMemo each of those renders
+   * would normalise, filter and re-sort the whole list again. It only depends on the
+   * data and the two controls that change the result.
+   */
+  const view = useMemo(() => {
+    const needle = normalize(search);
+    const rows = needle
+      ? suppliers.filter((supplier) => normalize(`${supplier.name} ${supplier.service_zone ?? ""} ${supplier.contact_email ?? ""}`).includes(needle))
+      : [...suppliers];
+    rows.sort(sortKey === "rate"
+      ? (a, b) => a.rate_per_shipment - b.rate_per_shipment
+      : sortKey === "updated"
+        ? (a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? "")
+        : (a, b) => a.name.localeCompare(b.name, "es"));
+    const active = rows.filter((supplier) => supplier.status === "active").length;
+    return { rows, active, suspended: rows.length - active };
+  }, [suppliers, search, sortKey]);
+
   // Loading state is switched on by whatever triggers a new request (filters, retry),
   // so the effect only reacts to the response.
   function startReload() {
@@ -98,49 +81,12 @@ export default function SuppliersPage() {
     setLoadError("");
   }
 
-  function toggleCategory(selected: string) {
-    setNewCategories((current) => current.includes(selected)
-      ? current.filter((item) => item !== selected)
-      : [...current, selected]);
-  }
-
-  async function createSupplier(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsCreating(true);
-    setError("");
-    setNotice("");
-    try {
-      const response = await apiFetch("/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          country: newCountry,
-          categories: newCategories,
-          rate_per_shipment: Number(rate),
-          currency: newCountry === "USA" ? "USD" : "EUR",
-          status: "active",
-          service_zone: serviceZone.trim() || undefined,
-          contact_email: contactEmail.trim() || undefined,
-          notes: notes.trim() || undefined,
-        }),
-      });
-      const body = await parseResponse<Supplier>(response, "No se pudo registrar el proveedor.");
-      if ((!country || country === newCountry) && (!category || newCategories.includes(category))) {
-        setSuppliers((current) => [body, ...current]);
-      }
-      setName("");
-      setNewCategories([]);
-      setRate("");
-      setServiceZone("");
-      setContactEmail("");
-      setNotes("");
-      setNotice("Proveedor registrado.");
-    } catch (requestError) {
-      setError(toUserMessage(requestError, "No se pudo completar la acción. Inténtalo de nuevo."));
-    } finally {
-      setIsCreating(false);
+  // Shown immediately when the new supplier matches the active server filters.
+  function handleCreated(supplier: Supplier) {
+    if ((!country || country === supplier.country) && (!category || supplier.categories.includes(category))) {
+      setSuppliers((current) => [supplier, ...current]);
     }
+    setNotice("Proveedor registrado.");
   }
 
   async function updateRate(supplier: Supplier) {
@@ -193,13 +139,15 @@ export default function SuppliersPage() {
     <>
       <header className="topbar supplier-header">
         <div><p className="kicker">OPERACIONES / COMPRAS</p><h1>Directorio de proveedores</h1></div>
-        <span className="supplier-count">{suppliers.length} proveedores</span>
+        <span className="supplier-count">{view.rows.length} proveedores · {view.active} activos · {view.suspended} suspendidos</span>
       </header>
 
       <section className="supplier-intro">
         <div><h2>Red operativa</h2><p>Consulta cobertura, servicios y tarifas vigentes de los partners de TrackFlow.</p></div>
         <div className="supplier-filters">
           <label>País<select value={country} onChange={(event) => { startReload(); setCountry(event.target.value); }}><option value="">Todos</option><option value="USA">Estados Unidos</option><option value="Spain">España</option></select></label>
+          <label>Buscar<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, zona o email" /></label>
+          <label>Ordenar<select value={sortKey} onChange={(event) => setSortKey(event.target.value as "name" | "rate" | "updated")}><option value="name">Nombre</option><option value="rate">Tarifa (menor primero)</option><option value="updated">Última actualización</option></select></label>
           <label>Categoria<select value={category} onChange={(event) => { startReload(); setCategory(event.target.value); }}><option value="">Todas</option>{categories.map((item) => <option key={item} value={item}>{categoryLabels[item]}</option>)}</select></label>
         </div>
       </section>
@@ -212,7 +160,7 @@ export default function SuppliersPage() {
           <tbody>
             {isLoading && <tr><td colSpan={7} className="supplier-empty" aria-live="polite">Cargando directorio...</td></tr>}
             {!isLoading && loadError && <tr><td colSpan={7}><ErrorState title="No se pudo cargar el directorio" message={loadError} onRetry={() => { startReload(); setReloadKey((key) => key + 1); }} /></td></tr>}
-            {!isLoading && !loadError && suppliers.map((supplier) => <tr key={supplier.id}>
+            {!isLoading && !loadError && view.rows.map((supplier) => <tr key={supplier.id}>
               <td><strong>{supplier.name}</strong>{supplier.contact_email && <a className="supplier-contact" href={`mailto:${supplier.contact_email}`}>{supplier.contact_email}</a>}{supplier.notes && <small className="supplier-notes" title={supplier.notes}>{supplier.notes}</small>}<small className="supplier-id">ID {supplier.id}</small></td>
               <td><span className="country-dot" />{formatCountry(supplier.country)}<small className="supplier-id">{supplier.currency}</small></td>
               <td>{supplier.service_zone ?? <span className="supplier-unspecified">Sin zona definida</span>}</td>
@@ -221,23 +169,17 @@ export default function SuppliersPage() {
               <td><button type="button" disabled={busySupplierId === supplier.id} className={`supplier-status ${supplier.status}`} onClick={() => toggleStatus(supplier)} aria-label={`${supplier.status === "active" ? "Suspender" : "Activar"} a ${supplier.name}`}>{supplier.status === "active" ? "Activo" : "Suspendido"}</button></td>
               <td>{supplier.updated_at ? <time dateTime={supplier.updated_at}>{new Date(supplier.updated_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</time> : "—"}</td>
             </tr>)}
-            {!isLoading && !loadError && suppliers.length === 0 && <tr><td colSpan={7} className="supplier-empty">No hay proveedores para estos filtros.</td></tr>}
+            {!isLoading && !loadError && view.rows.length === 0 && <tr><td colSpan={7} className="supplier-empty">No hay proveedores para estos filtros.</td></tr>}
           </tbody>
         </table></div>
       </section>
 
       <section className="supplier-create">
-        <div className="supplier-create-heading"><div><p className="kicker">ALTA DE PARTNER</p><h2>Registrar proveedor</h2></div><span>Los campos con * son obligatorios</span></div>
-        <form onSubmit={createSupplier}>
-          <label className="supplier-name-field">Nombre del proveedor *<input required minLength={2} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre comercial" /></label>
-          <label>País *<select value={newCountry} onChange={(event) => setNewCountry(event.target.value as "USA" | "Spain")}><option value="USA">Estados Unidos (USA)</option><option value="Spain">España</option></select></label>
-          <label>Tarifa por envío o unidad *<input required type="number" min="0.01" step="0.01" value={rate} onChange={(event) => setRate(event.target.value)} placeholder="0.00" /><small className="supplier-field-hint">Moneda del contrato: {newCountry === "USA" ? "USD" : "EUR"}</small></label>
-          <label className="supplier-extra-field">Zona de servicio<input maxLength={120} value={serviceZone} onChange={(event) => setServiceZone(event.target.value)} placeholder="Opcional" /></label>
-          <label className="supplier-extra-field">Email de contacto<input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} placeholder="contacto@empresa.com" /></label>
-          <fieldset><legend>Categorías *</legend><div className="supplier-category-options">{categories.map((item) => <label key={item}><input type="checkbox" checked={newCategories.includes(item)} onChange={() => toggleCategory(item)} />{categoryLabels[item]}</label>)}</div></fieldset>
-          <label className="supplier-notes-field">Notas de operaciones<textarea maxLength={1000} rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcional" /></label>
-          <button className="primary-button" type="submit" disabled={isCreating || newCategories.length === 0}>{isCreating ? "Guardando..." : "Registrar proveedor"}</button>
-        </form>
+        <div className="supplier-create-heading"><div><p className="kicker">ALTA DE PARTNER</p><h2>Registrar proveedor</h2></div>
+          {!showCreate && <button type="button" className="primary-button" onClick={() => setShowCreate(true)}>+ Nuevo proveedor</button>}
+        </div>
+        {/* The form's code is only downloaded the first time someone opens it. */}
+        {showCreate && <SupplierCreateForm onCreated={handleCreated} onError={setError} onClose={() => setShowCreate(false)} />}
       </section>
     </>
   );

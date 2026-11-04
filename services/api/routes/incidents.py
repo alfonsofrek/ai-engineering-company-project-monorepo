@@ -6,10 +6,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from services.api.cache import INCIDENT_SUMMARY, INCIDENT_SUMMARY_TTL, cache
 from services.api.database import incidents_table
 from services.api.incident_models import (
     STATUS_LABELS,
@@ -85,6 +86,7 @@ def create_incident(payload: Any = Body(default=None)) -> IncidentResponse | JSO
     timestamp = _now()
     document = {**incident.model_dump(mode="json"), "source_ref": None, "created_at": timestamp, "updated_at": timestamp}
     document_id = incidents_table.insert(document)
+    cache.invalidate(INCIDENT_SUMMARY)
     return to_response(document, document_id)
 
 
@@ -111,7 +113,14 @@ def list_incidents(
 
 
 @router.get("/summary", response_model=IncidentSummary)
-def incidents_summary() -> IncidentSummary:
+def incidents_summary(response: Response) -> IncidentSummary:
+    # Same answer for every authenticated user (no personal data), so one shared key is safe.
+    summary, cached = cache.get_or_compute(INCIDENT_SUMMARY, "all", INCIDENT_SUMMARY_TTL, _compute_summary)
+    response.headers["X-Cache"] = "HIT" if cached else "MISS"
+    return summary
+
+
+def _compute_summary() -> IncidentSummary:
     incidents = incidents_table.all()
 
     def count(field: str, values: type) -> dict[str, int]:
@@ -163,4 +172,5 @@ def update_incident_status(incident_id: int, payload: Any = Body(default=None)) 
 
     changes = {"status": update.status.value, "updated_at": _now()}
     incidents_table.update(changes, doc_ids=[incident_id])
+    cache.invalidate(INCIDENT_SUMMARY)
     return to_response({**incident, **changes}, incident_id)
