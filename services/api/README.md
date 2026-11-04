@@ -68,3 +68,6 @@ uv run pytest tests
 - [Salida del seeder](../../docs/screenshots/supplier-seed.png)
 - [Respuesta del filtro por país en Swagger UI](../../docs/screenshots/supplier-api-filter.png)
 - [Directorio web filtrado por país](../../docs/screenshots/supplier-directory-filter.png)
+- [Gestor de incidencias: formulario con error de validación](../../docs/screenshots/incident-manager/incident-form-validation-error.png)
+- [Gestor de incidencias: listado con datos](../../docs/screenshots/incident-manager/incident-list-with-data.png)
+- [Gestor de incidencias: panel de resumen](../../docs/screenshots/incident-manager/incident-summary-panel.png)
