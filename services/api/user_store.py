@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -32,6 +33,22 @@ def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     return {"id": document.doc_id, **dict(document)}
 
 
+def ensure_user_uuid(user_id: int) -> str:
+    """Returns the user's stable UUID, assigning one to accounts created before it existed.
+
+    Inventory records in Supabase reference users by this UUID; there is no user table there.
+    """
+    document = users_table.get(doc_id=user_id)
+    if document is None:
+        raise KeyError(user_id)
+    existing = document.get("uuid")
+    if existing:
+        return str(existing)
+    new_uuid = str(uuid.uuid4())
+    users_table.update({"uuid": new_uuid}, doc_ids=[user_id])
+    return new_uuid
+
+
 def get_user_by_email(email: str) -> dict[str, Any] | None:
     document = users_table.get(Query().email == str(email))
     if document is None:
@@ -62,6 +79,7 @@ def create_user(
 
     user_id = users_table.insert(
         {
+            "uuid": str(uuid.uuid4()),
             "email": str(email),
             "hashed_password": hash_password(password),
             "is_active": True,
