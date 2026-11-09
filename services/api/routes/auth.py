@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -74,12 +73,8 @@ def _deliver_reset_email(email: str, token: str) -> None:
 
 
 def _set_password(user_id: int, new_password: str) -> None:
-    users.update_user(
-        user_id,
-        {"password": new_password, "password_changed_at": datetime.now(timezone.utc).isoformat()},
-    )
-    # Any other reset link the user still had stops working.
-    password_reset.revoke_all_for_user(user_id)
+    # update_user hashes it, stamps password_changed_at and revokes pending reset links.
+    users.update_user(user_id, {"password": new_password})
 
 
 @router.post("/forgot-password", response_model=MessageResponse)

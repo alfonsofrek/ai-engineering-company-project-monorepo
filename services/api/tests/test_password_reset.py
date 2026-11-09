@@ -149,3 +149,47 @@ def test_short_new_password_is_rejected(api_database):
         headers=headers,
     )
     assert response.status_code == 422
+
+
+def test_reset_link_lifetime_must_stay_between_15_and_60_minutes(monkeypatch):
+    for bad in ("5", "61", "half-hour"):
+        monkeypatch.setenv("PASSWORD_RESET_TOKEN_MINUTES", bad)
+        with pytest.raises(RuntimeError):
+            password_reset.token_lifetime_minutes()
+    monkeypatch.setenv("PASSWORD_RESET_TOKEN_MINUTES", "45")
+    assert password_reset.token_lifetime_minutes() == 45
+
+
+def test_only_the_token_hash_is_stored(api_database, sent_emails):
+    client, *_ = api_database
+    create_authenticated_user(client)
+    client.post("/auth/forgot-password", json={"email": EMAIL})
+    raw = token_from(sent_emails[0])
+    stored = password_reset.password_reset_tokens_table.all()[0]
+    assert raw not in str(stored) and len(stored["token_hash"]) == 64
+
+
+def test_forgot_password_for_inactive_account_sends_nothing(api_database, sent_emails):
+    client, _, _, users_table, _ = api_database
+    registration, _ = create_authenticated_user(client)
+    users_table.update({"is_active": False}, doc_ids=[registration["user"]["id"]])
+    assert client.post("/auth/forgot-password", json={"email": EMAIL}).status_code == 200
+    assert sent_emails == []
+
+
+def test_forgot_password_matches_email_in_any_case(api_database, sent_emails):
+    client, *_ = api_database
+    create_authenticated_user(client)
+    client.post("/auth/forgot-password", json={"email": "OPS@Example.com"})
+    assert [e["to"] for e in sent_emails] == [EMAIL]
+
+
+def test_change_password_to_the_same_one_is_rejected(api_database):
+    client, *_ = api_database
+    _, headers = create_authenticated_user(client)
+    response = client.post(
+        "/auth/change-password",
+        json={"current_password": OLD_PASSWORD, "new_password": OLD_PASSWORD},
+        headers=headers,
+    )
+    assert response.status_code == 400
