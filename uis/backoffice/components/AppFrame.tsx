@@ -6,7 +6,7 @@ import { type ReactNode } from "react";
 import { useAuth } from "./AuthProvider";
 import { ErrorState } from "./ErrorState";
 
-const publicPaths = new Set(["/login", "/register"]);
+const publicPaths = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
 
 export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +37,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
         <Link className={pathname === "/inventory/orders" ? "active" : ""} href="/inventory/orders">Movimientos</Link>
         <Link className={pathname === "/inventory/orders/inbound" ? "active" : ""} href="/inventory/orders/inbound">Registrar entrada</Link>
         <Link className={pathname === "/inventory/orders/outbound" ? "active" : ""} href="/inventory/orders/outbound">Registrar salida</Link>
-        <Link className={pathname.startsWith("/account") ? "active" : ""} href="/account/profile">Mi perfil</Link>
+        <Link className={pathname === "/account/profile" ? "active" : ""} href="/account/profile">Mi perfil</Link>
+        <Link className={pathname === "/account/change-password" ? "active" : ""} href="/account/change-password">Cambiar contraseña</Link>
       </nav>
       <div className="side-bottom">
         <span className="avatar">{user?.profile.name?.slice(0, 2).toUpperCase() ?? "OP"}</span>
