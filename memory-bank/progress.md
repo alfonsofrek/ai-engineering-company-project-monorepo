@@ -19,6 +19,8 @@
 - Monorepo dockerizado: `docker-compose.yml` (ui + api en `trackflow-net`), override de producción y `docs/docker.md`.
 - Auditoría de rendimiento con Lighthouse en producción (`AUDIT.md`, `REPORT.md`, `audit/`): fuentes locales, home como Server Component, contraste AA, `useFormFields` y `useApiQuery`.
 
+- Milestone 5: inventario TrackFlow con doble base de datos (TinyDB para auth, Supabase/PostgreSQL con SQLModel para `SKU`, `StockEntry`, `StockExit`), router `/inventory`, stock calculado por almacén, rechazo `400` sin stock y seed idempotente del briefing; 32 pruebas pasan en SQLite y PostgreSQL.
+
 ## Siguiente
 - Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.
 - Paginación en servidor para `/incidents` y migrar proveedores a `useApiQuery`.
