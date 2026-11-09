@@ -12,6 +12,8 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "libpass[bcrypt]>=1.9.4",
     "python-dotenv>=1.2.4",
+    "sqlmodel>=0.0.48",
+    "psycopg2-binary>=2.9.13",
 ]
 
 [dependency-groups]
@@ -23,13 +25,14 @@ dev = [
 
 [project.scripts]
 seed = "seed:main"
+seed-inventory = "seed_inventory:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["seed"]
+py-modules = ["seed", "seed_inventory"]
 
 [tool.pytest.ini_options]
 pythonpath = ["../.."]

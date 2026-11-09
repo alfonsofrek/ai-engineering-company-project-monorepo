@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -37,6 +38,22 @@ def normalize_email(email: str) -> str:
     return str(email).strip().lower()
 
 
+def ensure_user_uuid(user_id: int) -> str:
+    """Returns the user's stable UUID, assigning one to accounts created before it existed.
+
+    Inventory records in Supabase reference users by this UUID; there is no user table there.
+    """
+    document = users_table.get(doc_id=user_id)
+    if document is None:
+        raise KeyError(user_id)
+    existing = document.get("uuid")
+    if existing:
+        return str(existing)
+    new_uuid = str(uuid.uuid4())
+    users_table.update({"uuid": new_uuid}, doc_ids=[user_id])
+    return new_uuid
+
+
 def get_user_by_email(email: str) -> dict[str, Any] | None:
     wanted = normalize_email(email)
     # Compares normalized values so accounts stored before normalization are still found.
@@ -69,6 +86,7 @@ def create_user(
 
     user_id = users_table.insert(
         {
+            "uuid": str(uuid.uuid4()),
             "email": normalize_email(email),
             "hashed_password": hash_password(password),
             "is_active": True,
