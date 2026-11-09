@@ -1,9 +1,11 @@
+import logging
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +32,29 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="TrackFlow API", lifespan=lifespan)
 register_error_handlers(app)
+timing_logger = logging.getLogger("api.timing")
+if not timing_logger.handlers:  # Uvicorn only configures its own loggers
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     [timing] %(message)s"))
+    timing_logger.addHandler(_handler)
+    timing_logger.setLevel(logging.INFO)
+    timing_logger.propagate = False
+
+
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    """One log line per request with its duration: the evidence for caching decisions."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    cache_state = response.headers.get("X-Cache", "-")
+    timing_logger.info(
+        "%s %s → %s | %.1fms | cache=%s", request.method, request.url.path, response.status_code, duration_ms, cache_state
+    )
+    response.headers["Server-Timing"] = f"app;dur={duration_ms:.1f}"
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("BACKOFFICE_ORIGIN", "http://localhost:3000")],
