@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         destination: `${apiOrigin}/api/incidents/:path*`,
       },
       {
+        // Inventory API (Milestone 5): SKUs and stock movements.
+        source: "/api/inventory/:path*",
+        destination: `${apiOrigin}/inventory/:path*`,
+      },
+      {
         source: "/api/auth/:path*",
         destination: `${apiOrigin}/auth/:path*`,
       },
