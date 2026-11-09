@@ -6,6 +6,7 @@ import { formatCount, type IncidentAnalysis } from "../../lib/incident-analysis"
 import "./analysis.css";
 import { ErrorState } from "../../components/ErrorState";
 import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
+import { track } from "../../lib/telemetry";
 
 const AnalysisResults = dynamic(() => import("../../components/AnalysisResults"), {
   loading: () => <p className="analysis-loading" aria-live="polite">Preparando resultados…</p>,
@@ -45,8 +46,20 @@ export default function IncidentsAnalysisPage() {
       });
       const body = await parseResponse<IncidentAnalysis>(response, "No se pudo analizar el archivo.");
       if (!body?.metrics) throw new ApiError("El servidor ha devuelto un análisis incompleto. Inténtalo de nuevo.", 502);
+      // File contents and name are never sent: only sizes and record counts.
+      track("csv_analysis_completed", {
+        outcome: "analyzed",
+        total_records: body.metrics.total,
+        invalid_records: body.metrics.invalid,
+        file_size_bytes: file.size,
+      });
       setResult(body);
     } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 400) {
+        const message = requestError.message.toLowerCase();
+        const outcome = /vac[ií]o|empty/.test(message) ? "rejected_empty" : /codific|utf|encoding/.test(message) ? "rejected_encoding" : "rejected_format";
+        track("csv_analysis_completed", { outcome, total_records: null, invalid_records: null, file_size_bytes: file.size });
+      }
       setFailedAction("analyze");
       setError(toUserMessage(requestError, "No se pudo analizar el archivo. Comprueba que es un CSV válido e inténtalo de nuevo."));
     } finally {
@@ -65,6 +78,7 @@ export default function IncidentsAnalysisPage() {
         await parseResponse<unknown>(response, "No se pudieron descargar los resultados.");
       }
       const url = URL.createObjectURL(await response.blob());
+      track("csv_results_exported", { total_records: result?.metrics?.total ?? 0 });
       const link = document.createElement("a");
       link.href = url;
       link.download = "results.csv";

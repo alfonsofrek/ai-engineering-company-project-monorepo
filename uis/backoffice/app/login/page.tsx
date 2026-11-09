@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TOKEN_KEY } from "../../lib/auth-client";
+import { LOGIN_PENDING_KEY, telemetry } from "../../lib/telemetry";
 import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
 
 export default function LoginPage() {
@@ -26,6 +27,8 @@ export default function LoginPage() {
       const body = await parseResponse<{ access_token?: string }>(response, "No se pudo iniciar sesión.");
       if (!body?.access_token) throw new ApiError("El servidor no ha devuelto una sesión válida. Inténtalo de nuevo.", 502);
       localStorage.setItem(TOKEN_KEY, body.access_token);
+      telemetry.startSession();
+      sessionStorage.setItem(LOGIN_PENDING_KEY, "1");
       const requestedPath = new URLSearchParams(window.location.search).get("next");
       const destination = requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
         ? requestedPath

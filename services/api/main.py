@@ -18,6 +18,7 @@ from services.api.routes.incidents import router as incidents_router
 from services.api.routes.incidents_analysis import router as incidents_analysis_router
 from services.api.routes.profiles import router as profiles_router
 from services.api.routes.suppliers import router as suppliers_router
+from services.api.routes.telemetry import router as telemetry_router
 from services.api.routes.users import router as users_router
 
 app = FastAPI(title="TrackFlow API")
@@ -38,8 +39,10 @@ async def timing_middleware(request: Request, call_next):
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
     cache_state = response.headers.get("X-Cache", "-")
+    request_id = request.headers.get("X-Request-ID", "-")  # correlation with frontend telemetry
     timing_logger.info(
-        "%s %s → %s | %.1fms | cache=%s", request.method, request.url.path, response.status_code, duration_ms, cache_state
+        "%s %s → %s | %.1fms | cache=%s | req=%s",
+        request.method, request.url.path, response.status_code, duration_ms, cache_state, request_id,
     )
     response.headers["Server-Timing"] = f"app;dur={duration_ms:.1f}"
     return response
@@ -47,8 +50,12 @@ async def timing_middleware(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("BACKOFFICE_ORIGIN", "http://localhost:3000")],
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", os.getenv("BACKOFFICE_ORIGIN", "http://localhost:3000")).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 app.include_router(auth_router)
@@ -57,3 +64,4 @@ app.include_router(profiles_router)
 app.include_router(suppliers_router)
 app.include_router(incidents_analysis_router)
 app.include_router(incidents_router)
+app.include_router(telemetry_router)

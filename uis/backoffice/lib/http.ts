@@ -103,8 +103,24 @@ export async function parseResponse<T>(response: Response, fallback: string): Pr
   throw new ApiError(detail ?? fieldSummary ?? messageForStatus(response.status, fallback), response.status, fieldErrors);
 }
 
+export type ErrorKind = "network" | "http_4xx" | "http_5xx" | "unexpected_response" | "unknown";
+
+/** Classifies an error for telemetry (ui_error_displayed): kind and HTTP status, never the text. */
+export function classifyError(error: unknown): { kind: ErrorKind; status: number | null } {
+  if (error instanceof ApiError) {
+    if (error.message.startsWith("El servidor ha devuelto")) return { kind: "unexpected_response", status: error.status };
+    return { kind: error.status >= 500 ? "http_5xx" : error.status >= 400 ? "http_4xx" : "unknown", status: error.status };
+  }
+  if (error instanceof TypeError) return { kind: "network", status: null };
+  return { kind: "unknown", status: null };
+}
+
+/** The last error turned into a UI message, so <ErrorState /> can report its kind. */
+export let lastDisplayedError: { kind: ErrorKind; status: number | null } = { kind: "unknown", status: null };
+
 /** Converts any thrown value into a message that is safe to show in the UI. */
 export function toUserMessage(error: unknown, fallback: string) {
+  lastDisplayedError = classifyError(error);
   if (error instanceof ApiError) return error.message;
   if (error instanceof TypeError) return NETWORK_MESSAGE;
   return fallback;

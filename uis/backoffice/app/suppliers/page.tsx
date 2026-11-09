@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/auth-client";
 import { parseResponse, toUserMessage } from "../../lib/http";
+import { track } from "../../lib/telemetry";
 import { ErrorState } from "../../components/ErrorState";
 import "./suppliers.css";
 
@@ -101,6 +102,15 @@ export default function SuppliersPage() {
         body: JSON.stringify({ rate_per_shipment: value }),
       });
       const body = await parseResponse<Supplier>(response, "No se pudo actualizar la tarifa.");
+      if (body.rate_per_shipment !== supplier.rate_per_shipment) {
+        track("supplier_rate_updated", {
+          supplier_id: body.id,
+          previous_rate: supplier.rate_per_shipment,
+          new_rate: body.rate_per_shipment,
+          change_pct: Math.round(((body.rate_per_shipment - supplier.rate_per_shipment) / supplier.rate_per_shipment) * 10000) / 100,
+          currency: body.currency,
+        });
+      }
       setSuppliers((current) => current.map((item) => item.id === supplier.id ? body : item));
       setRateDrafts((current) => {
         const drafts = { ...current };
@@ -126,6 +136,9 @@ export default function SuppliersPage() {
         body: JSON.stringify({ status: supplier.status === "active" ? "suspended" : "active" }),
       });
       const body = await parseResponse<Supplier>(response, "No se pudo cambiar el estado.");
+      if (body.status !== supplier.status) {
+        track("supplier_status_changed", { supplier_id: body.id, from_status: supplier.status, to_status: body.status, country: body.country });
+      }
       setSuppliers((current) => current.map((item) => item.id === supplier.id ? body : item));
       setNotice(`${supplier.name}: ${body?.status === "active" ? "activo" : "suspendido"}.`);
     } catch (requestError) {

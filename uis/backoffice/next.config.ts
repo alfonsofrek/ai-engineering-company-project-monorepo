@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         destination: `${apiOrigin}/api/incidents/:path*`,
       },
       {
+        // Telemetry ingestion (stub in Phase 2). Same origin, so sendBeacon needs no CORS.
+        source: "/api/telemetry/:path*",
+        destination: `${apiOrigin}/telemetry/:path*`,
+      },
+      {
         source: "/api/auth/:path*",
         destination: `${apiOrigin}/auth/:path*`,
       },

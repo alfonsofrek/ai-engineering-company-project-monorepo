@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, AuthMe, TOKEN_KEY } from "../lib/auth-client";
 import { ApiError, parseResponse, toUserMessage } from "../lib/http";
+import { LOGIN_PENDING_KEY, telemetry, track } from "../lib/telemetry";
 
 type SessionStatus = "checking" | "authenticated" | "public" | "unauthenticated" | "error";
 type AuthContextValue = {
@@ -65,6 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((response) => parseResponse<AuthMe>(response, "No se pudo comprobar tu sesión."))
       .then((currentUser) => {
         if (!active) return;
+        telemetry.setUser(currentUser.profile.user_id);
+        // auth_login_succeeded needs the role, which only /auth/me returns.
+        if (sessionStorage.getItem(LOGIN_PENDING_KEY)) {
+          sessionStorage.removeItem(LOGIN_PENDING_KEY);
+          track("auth_login_succeeded", { role: currentUser.role, app: "backoffice" });
+        }
         setSession({ pathname, status: "authenticated", user: currentUser });
       })
       .catch((error: unknown) => {
@@ -89,6 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname, router, attempt]);
 
   function logout() {
+    void telemetry.flush();
+    telemetry.endSession();
     localStorage.removeItem(TOKEN_KEY);
     setSession({ pathname, status: "unauthenticated", user: null });
     router.replace("/login");

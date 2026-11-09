@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { apiFetch } from "../../../lib/auth-client";
 import { ApiError, parseResponse, toUserMessage } from "../../../lib/http";
+import { track } from "../../../lib/telemetry";
 import {
   BRANCH_LABELS,
   CATEGORY_LABELS,
@@ -70,12 +71,32 @@ export default function NewIncidentPage() {
         body: JSON.stringify({ ...form, title: form.title.trim(), description: form.description.trim() }),
       });
       const incident = await parseResponse<Incident>(response, "No se pudo registrar la incidencia.");
+      // MM-5. Emitted after the API confirmed the insert (201). Title and description are free
+      // text and are never sent: only the description's length.
+      track("incident_created", {
+        incident_id: incident.id,
+        category: incident.category,
+        origin: incident.origin,
+        branch: incident.branch,
+        initial_status: incident.status,
+        description_length: incident.description.length,
+      });
       setForm(EMPTY_FORM);
       setFieldErrors({});
       setCreated(incident);
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) {
         setFieldErrors(error.fieldErrors as Partial<Record<FieldName, string>>);
+      }
+      if (error instanceof ApiError && (error.status === 400 || error.status === 422)) {
+        // Names of the rejected fields only, never the values that were sent.
+        const allowed = ["title", "description", "category", "status", "origin", "branch"];
+        const fields = Object.keys(error.fieldErrors).filter((field) => allowed.includes(field));
+        track("incident_validation_failed", {
+          fields: fields.length > 0 ? fields : ["body"],
+          origin: ["customer", "branch", "internal"].includes(form.origin) ? form.origin : null,
+          branch: ["los_angeles", "zaragoza", "central"].includes(form.branch) ? form.branch : null,
+        });
       }
       setFormError(toUserMessage(error, "No se pudo registrar la incidencia. Inténtalo de nuevo."));
     } finally {

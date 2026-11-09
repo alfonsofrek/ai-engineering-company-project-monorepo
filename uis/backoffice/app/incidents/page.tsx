@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../lib/auth-client";
-import { parseResponse, toUserMessage } from "../../lib/http";
+import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
+import { track } from "../../lib/telemetry";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import {
   BRANCH_LABELS,
@@ -43,12 +44,32 @@ export default function IncidentsPage() {
     ? state.data.map((item) => overrides[item.id] ?? item)
     : [];
 
+  // incident_list_filtered: only for filter changes made by the user, debounced 1 s so a
+  // burst of changes counts once, and sent when the filtered list has loaded.
+  const filterChanged = useRef(false);
+  const resultCount = state.status === "success" && Array.isArray(state.data) ? state.data.length : null;
+  useEffect(() => {
+    if (!filterChanged.current || resultCount === null) return;
+    const timer = setTimeout(() => {
+      filterChanged.current = false;
+      track("incident_list_filtered", {
+        status: filters.status || null,
+        origin: filters.origin || null,
+        branch: filters.branch || null,
+        result_count: resultCount,
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [filters, resultCount]);
+
   function changeFilter(key: keyof Filters, value: string) {
+    filterChanged.current = true;
     setOverrides({});
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
   function clearFilters() {
+    filterChanged.current = true;
     setOverrides({});
     setFilters(NO_FILTERS);
   }
@@ -71,10 +92,31 @@ export default function IncidentsPage() {
         body: JSON.stringify({ status: nextStatus }),
       });
       const updated = await parseResponse<Incident>(response, "No se pudo actualizar el estado.");
+      // MM-6. After the API confirmed the change (200).
+      track("incident_status_changed", {
+        incident_id: incident.id,
+        from_status: previous.status,
+        to_status: updated.status,
+        category: updated.category,
+        branch: updated.branch,
+        origin: updated.origin,
+        incident_created_at: updated.created_at,
+        seconds_in_previous_status: Math.max(0, Math.round((Date.parse(updated.updated_at) - Date.parse(previous.updated_at)) / 1000)),
+      });
       replaceIncident(updated);
       setNotice(`Incidencia #${incident.id}: ${STATUS_LABELS[nextStatus].toLowerCase()}.`);
       setSummaryKey((key) => key + 1);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        // MM-7. The API refused a transition outside the lifecycle (e.g. someone else closed it first).
+        track("incident_status_change_rejected", {
+          incident_id: incident.id,
+          current_status: previous.status,
+          requested_status: nextStatus,
+          reason: /no admite más cambios/.test(error.message) ? "final_state" : "invalid_transition",
+          branch: incident.branch,
+        });
+      }
       replaceIncident(previous);
       setRowError({ id: incident.id, message: toUserMessage(error, "No se pudo actualizar el estado. Inténtalo de nuevo.") });
     } finally {

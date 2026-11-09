@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { apiFetch } from "../lib/auth-client";
 import { parseResponse, toUserMessage } from "../lib/http";
+import { track } from "../lib/telemetry";
 import { categories, categoryLabels, type Supplier } from "../lib/suppliers";
 
 /**
@@ -50,6 +51,8 @@ export default function SupplierCreateForm({ onCreated, onError, onClose }: {
         }),
       });
       const body = await parseResponse<Supplier>(response, "No se pudo registrar el proveedor.");
+      // contact_email and notes are never sent.
+      track("supplier_created", { supplier_id: body.id, country: body.country, categories: body.categories, currency: body.currency });
       onCreated(body);
       setName("");
       setNewCategories([]);

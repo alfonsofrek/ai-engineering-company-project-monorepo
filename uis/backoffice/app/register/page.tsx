@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TOKEN_KEY } from "../../lib/auth-client";
 import { ApiError, parseResponse, toUserMessage } from "../../lib/http";
+import { LOGIN_PENDING_KEY, telemetry, track } from "../../lib/telemetry";
 
 type FieldErrors = Partial<Record<"email" | "password" | "confirm" | "name" | "phone" | "address", string>>;
 
@@ -57,6 +58,8 @@ export default function RegisterPage() {
         if (registrationError instanceof ApiError) setFieldErrors(pickFieldErrors(registrationError.fieldErrors));
         throw registrationError;
       }
+      // Only whether optional fields were filled in: never their values.
+      track("user_registered", { has_profile_name: Boolean(payload.name), has_phone: Boolean(payload.phone) });
 
       const login = await fetch("/api/auth/login", {
         method: "POST",
@@ -72,6 +75,8 @@ export default function RegisterPage() {
       }
       if (!loginBody?.access_token) throw new ApiError("Tu cuenta se ha creado. Entra desde «Iniciar sesión».", 502);
       localStorage.setItem(TOKEN_KEY, loginBody.access_token);
+      telemetry.startSession();
+      sessionStorage.setItem(LOGIN_PENDING_KEY, "1");
       router.replace("/");
     } catch (requestError) {
       setError(toUserMessage(requestError, "No se pudo crear la cuenta. Inténtalo de nuevo."));

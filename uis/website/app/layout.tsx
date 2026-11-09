@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TelemetryBoot } from "../components/TelemetryBoot";
 import { dmSans, spaceGrotesk } from "./fonts";
 import "./globals.css";
 
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es" className={`${dmSans.variable} ${spaceGrotesk.variable}`}><body>{children}</body></html>;
+  return <html lang="es" className={`${dmSans.variable} ${spaceGrotesk.variable}`}><body><TelemetryBoot />{children}</body></html>;
 }
