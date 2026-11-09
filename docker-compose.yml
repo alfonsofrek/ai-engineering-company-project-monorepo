@@ -1,0 +1,67 @@
+# TrackFlow monorepo — development stack.
+#   docker compose up        -> website http://localhost:3000, backoffice http://localhost:3001, API http://localhost:8000
+# All configuration comes from the root .env file (copy .env.example). No secrets live in this file.
+name: trackflow
+
+services:
+  ui:
+    build:
+      context: ./uis
+    command: ["./start.sh"]
+    env_file: .env
+    environment:
+      # Server-side calls from Next.js reach the API by its Compose service name, never localhost.
+      API_INTERNAL_URL: http://api:8000
+      # Bind mounts on Linux/WSL/macOS don't always emit inotify events; polling keeps hot reload reliable.
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "${WEBSITE_PORT:-3000}:3000"
+      - "${BACKOFFICE_PORT:-3001}:3001"
+    volumes:
+      - ./uis:/app/uis
+      # Keep the container's node_modules and build caches; the host's are never mounted over them.
+      - ui_website_node_modules:/app/uis/website/node_modules
+      - ui_backoffice_node_modules:/app/uis/backoffice/node_modules
+      - ui_website_next:/app/uis/website/.next
+      - ui_backoffice_next:/app/uis/backoffice/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - trackflow-net
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./services
+    env_file: .env
+    environment:
+      SUPPLIERS_DB_PATH: /data/trackflow.json
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./services:/app/services
+      # The incident analysis route and seeds share code with /scripts and /packages.
+      - ./scripts:/app/scripts
+      - ./packages:/app/packages
+      - api_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - trackflow-net
+    restart: unless-stopped
+
+networks:
+  trackflow-net:
+    name: trackflow-net
+
+volumes:
+  ui_website_node_modules:
+  ui_backoffice_node_modules:
+  ui_website_next:
+  ui_backoffice_next:
+  api_data:
