@@ -17,6 +17,7 @@ from services.api.incident_models import (
     IncidentBranch,
     IncidentCategory,
     IncidentCreate,
+    IncidentListItem,
     IncidentOrigin,
     IncidentResponse,
     IncidentStatus,
@@ -66,7 +67,11 @@ def validation_error_response(error: ValidationError) -> JSONResponse:
 
 
 def to_response(document: dict[str, Any], document_id: int) -> IncidentResponse:
-    return IncidentResponse(id=document_id, **document)
+    return IncidentResponse.model_validate({**document, "id": document_id})
+
+
+def to_list_item(document: dict[str, Any], document_id: int) -> IncidentListItem:
+    return IncidentListItem.model_validate({**document, "id": document_id})
 
 
 def _now() -> str:
@@ -90,13 +95,13 @@ def create_incident(payload: Any = Body(default=None)) -> IncidentResponse | JSO
     return to_response(document, document_id)
 
 
-@router.get("", response_model=list[IncidentResponse])
+@router.get("", response_model=list[IncidentListItem])
 def list_incidents(
     status: IncidentStatus | None = None,  # noqa: A002 - public query parameter name
     origin: IncidentOrigin | None = None,
     branch: IncidentBranch | None = None,
     category: IncidentCategory | None = None,
-) -> list[IncidentResponse]:
+) -> list[IncidentListItem]:
     wanted_status = status
     incidents = incidents_table.all()
     filters = {
@@ -109,7 +114,7 @@ def list_incidents(
         if value is not None:
             incidents = [incident for incident in incidents if incident.get(key) == value]
     incidents.sort(key=lambda incident: incident.get("created_at", ""), reverse=True)
-    return [to_response(incident, incident.doc_id) for incident in incidents]
+    return [to_list_item(incident, incident.doc_id) for incident in incidents]
 
 
 @router.get("/summary", response_model=IncidentSummary)
