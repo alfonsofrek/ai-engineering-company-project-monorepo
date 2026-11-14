@@ -20,6 +20,7 @@
 - Auditoría de rendimiento con Lighthouse en producción (`AUDIT.md`, `REPORT.md`, `audit/`): fuentes locales, home como Server Component, contraste AA, `useFormFields` y `useApiQuery`.
 
 - Milestone 5: inventario TrackFlow con doble base de datos (TinyDB para auth, Supabase/PostgreSQL con SQLModel para `SKU`, `StockEntry`, `StockExit`), router `/inventory`, stock calculado por almacén, rechazo `400` sin stock y seed idempotente del briefing; 32 pruebas pasan en SQLite y PostgreSQL.
+- Auditoría de serialización (`docs/serialization-audit.md`): los 32 endpoints con `response_model` explícito, schemas de salida independientes de los de entrada, listas más ligeras que el detalle, auth sin email ni credenciales en respuestas sin autenticar, movimientos con SKU plano; contratos fijados en `tests/test_serialization.py` (104 pruebas pasan).
 
 ## Siguiente
 - Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.

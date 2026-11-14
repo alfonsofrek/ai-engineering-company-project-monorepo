@@ -28,12 +28,12 @@ export type Sku = {
   current_stock: number;
 };
 
-type SkuSummary = Pick<Sku, "id" | "name" | "sku" | "client_name" | "warehouse">;
+/** Flat SKU projection the API embeds in each movement (see docs/serialization-audit.md). */
+type SkuSummary = Pick<Sku, "id" | "name" | "sku">;
 
 export type StockEntry = {
   movement: "inbound";
   id: number;
-  sku_id: number;
   quantity: number;
   reference: string;
   warehouse: Warehouse;
@@ -45,7 +45,6 @@ export type StockEntry = {
 export type StockExit = {
   movement: "outbound";
   id: number;
-  sku_id: number;
   quantity: number;
   exit_type: ExitType;
   tracking_number: string | null;

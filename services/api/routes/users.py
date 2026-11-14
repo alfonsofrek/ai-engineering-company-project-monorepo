@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from services.api.auth_models import (
     ProfileResponse,
+    RegisteredUser,
     UserCreate,
+    UserListItem,
     UserRegistrationResponse,
     UserResponse,
     UserUpdate,
@@ -29,14 +31,17 @@ def register_user(payload: UserCreate) -> UserRegistrationResponse:
         )
     except users.DuplicateEmailError:
         raise HTTPException(status_code=409, detail="Ese email ya está registrado.") from None
-    return UserRegistrationResponse(user=user, profile=profile)
+    return UserRegistrationResponse(
+        user=RegisteredUser.model_validate(user),
+        profile=ProfileResponse.model_validate(profile),
+    )
 
 
-@router.get("", response_model=list[UserResponse])
-def list_all_users(current_user: UserResponse = Depends(get_current_user)) -> list[UserResponse]:
+@router.get("", response_model=list[UserListItem])
+def list_all_users(current_user: UserResponse = Depends(get_current_user)) -> list[UserListItem]:
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Esta acción requiere rol de administrador.")
-    return [UserResponse.model_validate(user) for user in users.list_users()]
+    return [UserListItem.model_validate(user) for user in users.list_users()]
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -69,7 +74,7 @@ def update_user(
     return UserResponse.model_validate(user)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def remove_user(
     user_id: int,
     current_user: UserResponse = Depends(get_current_user),

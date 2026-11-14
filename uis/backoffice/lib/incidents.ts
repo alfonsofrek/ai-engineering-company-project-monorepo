@@ -15,7 +15,8 @@ export type Incident = {
   branch: IncidentBranch;
   source_ref?: string | null;
   created_at: string;
-  updated_at: string;
+  /** Only in the detail / create / status responses; the list endpoint omits it. */
+  updated_at?: string;
 };
 
 export type IncidentSummary = {

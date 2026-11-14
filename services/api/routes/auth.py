@@ -12,6 +12,7 @@ from services.api.auth_models import (
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
+    ProfileResponse,
     ResetPasswordRequest,
     TokenResponse,
     UserResponse,
@@ -50,10 +51,11 @@ def read_auth_me(current_user: UserResponse = Depends(get_current_user)) -> Auth
     profile = users.get_profile_by_user_id(current_user.id)
     if profile is None:
         raise HTTPException(status_code=404, detail="No se ha encontrado el perfil de esta cuenta.")
+    # The only auth route that returns an email: the caller's own, for the profile view.
     return AuthMeResponse(
         email=current_user.email,
         role=current_user.role,
-        profile=profile,
+        profile=ProfileResponse.model_validate(profile),
     )
 
 

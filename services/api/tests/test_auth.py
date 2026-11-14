@@ -36,8 +36,10 @@ def test_registration_hashes_credentials_and_creates_profile(api_database):
     body = response.json()
     assert body["user"]["role"] == "user"
     assert "hashed_password" not in body["user"]
+    # Serialization audit: the register response never echoes the email back.
+    assert "email" not in body["user"]
     assert body["profile"]["name"] == "Marina Ruiz"
-    assert body["profile"]["user_id"] == body["user"]["id"]
+    assert profiles_table.all()[0]["user_id"] == body["user"]["id"]
 
     stored_user = users_table.get(doc_id=body["user"]["id"])
     assert stored_user["hashed_password"] != "strong-password-123"

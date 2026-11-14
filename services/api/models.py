@@ -58,11 +58,31 @@ class SupplierCreate(BaseModel):
 
 
 class Supplier(SupplierCreate):
+    """Stored record (TinyDB). Internal: endpoints return ``SupplierResponse``."""
+
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class SupplierResponse(Supplier):
+class SupplierResponse(BaseModel):
+    """Output contract for one supplier, shared by the list and the detail.
+
+    Declared field by field and independent from ``SupplierCreate``, so changing
+    what can be *written* never silently changes what is *returned*. The list
+    uses the same projection because the directory table reads every one of
+    these fields (name, contact, notes, zone, rate, status, last update).
+    """
+
     id: int
+    name: str
+    country: SupplierCountry
+    categories: list[SupplierCategory]
+    rate_per_shipment: float
+    currency: Currency
+    status: SupplierStatus
+    service_zone: str | None
+    contact_email: EmailStr | None
+    notes: str | None
+    updated_at: datetime
 
 
 class RateUpdate(BaseModel):
@@ -78,8 +98,9 @@ class StatusUpdate(BaseModel):
 
 
 class SupplierStatusEvent(BaseModel):
+    """One status change. ``supplier_id`` is omitted: the caller already has it in the URL."""
+
     id: int
-    supplier_id: int
     previous_status: SupplierStatus
     status: SupplierStatus
     changed_at: datetime
