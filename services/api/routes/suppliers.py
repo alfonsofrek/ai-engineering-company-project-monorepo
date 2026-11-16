@@ -23,7 +23,8 @@ router = APIRouter(tags=["suppliers"], dependencies=[Depends(get_current_user)])
 
 
 def serialize_supplier(document: dict, document_id: int) -> SupplierResponse:
-    return SupplierResponse(id=document_id, **document)
+    # Built from an explicit field list: any extra key stored in TinyDB is dropped.
+    return SupplierResponse.model_validate({**document, "id": document_id})
 
 
 @router.post("/suppliers", response_model=SupplierResponse, status_code=status.HTTP_201_CREATED)
@@ -109,10 +110,10 @@ def get_supplier_status_history(supplier_id: int) -> list[SupplierStatusEvent]:
     events = supplier_status_history_table.search(history_query.supplier_id == supplier_id)
     if suppliers_table.get(doc_id=supplier_id) is None and not events:
         raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")
-    return [SupplierStatusEvent(id=event.doc_id, **event) for event in events]
+    return [SupplierStatusEvent.model_validate({**event, "id": event.doc_id}) for event in events]
 
 
-@router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_supplier(supplier_id: int) -> None:
     if suppliers_table.get(doc_id=supplier_id) is None:
         raise HTTPException(status_code=404, detail="No existe ningún proveedor con ese identificador.")

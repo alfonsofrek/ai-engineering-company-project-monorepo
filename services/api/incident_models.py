@@ -74,8 +74,38 @@ class IncidentRecord(IncidentCreate):
     updated_at: datetime
 
 
-class IncidentResponse(IncidentRecord):
+class IncidentResponse(BaseModel):
+    """Output contract for one incident (detail, create, status change).
+
+    Declared field by field instead of inheriting ``IncidentCreate``, so the write
+    schema and the read schema can evolve independently. ``source_ref`` is kept:
+    the backoffice shows it as the reference of incidents imported from the CSV.
+    """
+
     id: int
+    title: str
+    description: str
+    category: IncidentCategory
+    status: IncidentStatus
+    origin: IncidentOrigin
+    branch: IncidentBranch
+    source_ref: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class IncidentListItem(BaseModel):
+    """Row of the incident table: the detail minus ``updated_at``, which the list never shows."""
+
+    id: int
+    title: str
+    description: str
+    category: IncidentCategory
+    status: IncidentStatus
+    origin: IncidentOrigin
+    branch: IncidentBranch
+    source_ref: str | None
+    created_at: datetime
 
 
 class IncidentStatusUpdate(BaseModel):

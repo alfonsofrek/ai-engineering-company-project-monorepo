@@ -2,7 +2,6 @@ export const TOKEN_KEY = "trackflow_access_token";
 
 export type Profile = {
   id: number;
-  user_id: number;
   name: string | null;
   phone: string | null;
   address: string | null;

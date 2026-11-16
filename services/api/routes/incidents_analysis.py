@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from scripts.analyze import (
     Analysis,
@@ -26,8 +27,37 @@ logger = logging.getLogger("trackflow.api")
 latest_analysis: Analysis | None = None
 
 
-def serialize_analysis(analysis: Analysis) -> dict[str, object]:
-    return {
+# ----------------------------------------------------------------- Response schemas
+# Keys are camelCase because that is the contract the incidents-analysis page
+# already reads (uis/backoffice/lib/incident-analysis.ts). Only aggregates leave
+# the API: no row of the uploaded CSV (emails, tracking numbers) is ever returned.
+
+
+class AnalysisMetrics(BaseModel):
+    total: int
+    valid: int
+    invalid: int
+    scoredClosed: int
+    closed: int
+    averageSatisfaction: float | None = Field(description="Average 1-5 score of scored closed incidents.")
+
+
+class AnalysisErrorBucket(BaseModel):
+    label: str
+    count: int
+
+
+class IncidentAnalysisResult(BaseModel):
+    metrics: AnalysisMetrics
+    errors: dict[str, AnalysisErrorBucket]
+    categories: dict[str, int]
+    statuses: dict[str, int]
+    countries: dict[str, int]
+    satisfactionScores: dict[str, int]
+
+
+def serialize_analysis(analysis: Analysis) -> IncidentAnalysisResult:
+    return IncidentAnalysisResult.model_validate({
         "metrics": {
             "total": analysis.total,
             "valid": analysis.valid,
@@ -46,11 +76,11 @@ def serialize_analysis(analysis: Analysis) -> dict[str, object]:
         "satisfactionScores": {
             str(score): analysis.satisfaction_scores[score] for score in range(1, 6)
         },
-    }
+    })
 
 
-@router.post("/api/incidents/analyze")
-def analyze_upload(file: UploadFile = File(...)) -> dict[str, object]:
+@router.post("/api/incidents/analyze", response_model=IncidentAnalysisResult)
+def analyze_upload(file: UploadFile = File(...)) -> IncidentAnalysisResult:
     global latest_analysis
 
     if not file.filename or not file.filename.lower().endswith(".csv"):
@@ -92,7 +122,12 @@ def analyze_upload(file: UploadFile = File(...)) -> dict[str, object]:
     return serialize_analysis(analysis)
 
 
-@router.get("/api/incidents/results/export")
+@router.get(
+    "/api/incidents/results/export",
+    response_model=None,  # a CSV file, not JSON: the contract is the media type below
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/csv": {}}, "description": "CSV with the `metrica,valor` rows."}},
+)
 def export_latest_results() -> StreamingResponse:
     if latest_analysis is None:
         raise HTTPException(status_code=404, detail="Todavía no hay ningún análisis. Analiza un CSV antes de descargar los resultados.")

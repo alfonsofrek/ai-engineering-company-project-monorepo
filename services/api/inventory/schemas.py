@@ -42,13 +42,16 @@ class SKURead(BaseModel):
 
 
 class SKUSummary(BaseModel):
-    """SKU data embedded in each stock movement."""
+    """Flat SKU projection embedded in each stock movement.
+
+    Only what the movement tables print (code and name) plus the id to link to the
+    product. ``warehouse`` is not repeated (the movement has its own) and
+    ``client_name`` / ``category`` belong to the product view, not to each movement.
+    """
 
     id: int
     name: str
     sku: str
-    client_name: str
-    warehouse: Warehouse
 
 
 # --------------------------------------------------------------------- Stock movements
@@ -84,7 +87,6 @@ class StockExitCreate(BaseModel):
 class StockEntryRead(BaseModel):
     id: int
     movement: Literal["inbound"] = "inbound"
-    sku_id: int
     quantity: int
     reference: str
     warehouse: Warehouse
@@ -96,7 +98,6 @@ class StockEntryRead(BaseModel):
 class StockExitRead(BaseModel):
     id: int
     movement: Literal["outbound"] = "outbound"
-    sku_id: int
     quantity: int
     exit_type: ExitType
     tracking_number: str | None

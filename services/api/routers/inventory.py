@@ -52,15 +52,12 @@ def _to_sku_read(sku: SKU, current_stock: int) -> SKURead:
 
 
 def _summary(sku: SKU) -> SKUSummary:
-    return SKUSummary(
-        id=sku.id, name=sku.name, sku=sku.sku, client_name=sku.client_name, warehouse=sku.warehouse
-    )
+    return SKUSummary(id=sku.id, name=sku.name, sku=sku.sku)
 
 
 def _entry_read(entry: StockEntry) -> StockEntryRead:
     return StockEntryRead(
         id=entry.id,
-        sku_id=entry.sku_id,
         quantity=entry.quantity,
         reference=entry.reference,
         warehouse=entry.warehouse,
@@ -73,7 +70,6 @@ def _entry_read(entry: StockEntry) -> StockEntryRead:
 def _exit_read(exit_: StockExit) -> StockExitRead:
     return StockExitRead(
         id=exit_.id,
-        sku_id=exit_.sku_id,
         quantity=exit_.quantity,
         exit_type=exit_.exit_type,
         tracking_number=exit_.tracking_number,

@@ -84,7 +84,15 @@ class Profile(BaseModel):
     address: str | None
 
 
+# ----------------------------------------------------------------- Response schemas
+# Every field below is listed on purpose: see docs/serialization-audit.md.
+# The internal ``User`` / ``Profile`` records above (hashed_password, user_id FK)
+# never leave the API.
+
+
 class UserResponse(BaseModel):
+    """One account, for its owner or an admin (GET/PUT /users/{id})."""
+
     id: int
     email: EmailStr
     is_active: bool
@@ -92,12 +100,33 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
-class ProfileResponse(Profile):
-    pass
+class UserListItem(BaseModel):
+    """Row of the admin user list: what an admin needs to pick an account, nothing more."""
+
+    id: int
+    email: EmailStr
+    role: UserRole
+    is_active: bool
+
+
+class ProfileResponse(BaseModel):
+    """The caller's own profile. ``user_id`` is a server-side foreign key and is not exposed."""
+
+    id: int
+    name: str | None
+    phone: str | None
+    address: str | None
+
+
+class RegisteredUser(BaseModel):
+    """Account created by POST /users. No email: the client already sent it."""
+
+    id: int
+    role: UserRole
 
 
 class UserRegistrationResponse(BaseModel):
-    user: UserResponse
+    user: RegisteredUser
     profile: ProfileResponse
 
 

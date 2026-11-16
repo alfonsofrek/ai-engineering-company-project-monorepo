@@ -5,8 +5,7 @@ export type AuthMe = {
   role: "admin" | "manager" | "user";
   profile: {
     id: number;
-    user_id: number;
-    name: string | null;
+      name: string | null;
     phone: string | null;
     address: string | null;
   };
