@@ -26,6 +26,8 @@
 
 - Gestor de incidencias con los valores oficiales del briefing: 9 categorías, 5 sedes, seed con el CSV oficial (95 válidas; 29/52/14 por estado) y filtro de impacto en SLA. Script `scripts/migrate_incident_values.py` para bases antiguas.
 
+- Telemetría y pipeline alineados con los briefings oficiales: el plan incluye los 5 eventos obligatorios de inventario (30 eventos en total, Markdown y JSON coherentes) y `PIPELINE_DESIGN.md` diseña `reporting.weekly_warehouse_client_performance` con los 4 KPIs del briefing.
+
 ## Siguiente
 - Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.
 - Paginación en servidor para `/incidents` y migrar proveedores a `useApiQuery`.

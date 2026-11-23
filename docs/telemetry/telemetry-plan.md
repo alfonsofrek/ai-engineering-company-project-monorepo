@@ -2,111 +2,114 @@
 
 > Respuesta al RFI de dirección: qué datos merece la pena capturar en la plataforma de TrackFlow, por qué y cómo. Es un documento de **diseño**: todavía no se instrumenta nada.
 > Entregables: este documento y [`event-schemas.json`](event-schemas.json), que es JSON Schema draft-07. Los dos se generan a partir del mismo catálogo, así que siempre coinciden.
-> Fuente de verdad del dominio: [`company-BRIEFING.md`](../../company-BRIEFING.md) (sección §7, métricas obligatorias) y [`CONTEXT.md`](../../CONTEXT.md).
+> Fuente de verdad del dominio: el briefing oficial [`docs/briefings/06-telemetry.es.md`](../briefings/06-telemetry.es.md) (§3, métricas obligatorias) y [`CONTEXT.md`](../../CONTEXT.md).
 
 ## 0. Resumen
 
-- **25 eventos** diseñados: **5 obligatorios**, que cubren las 7 métricas MM-1…MM-7 del BRIEFING, y **20 oportunidades** identificadas.
-- **Categorías cubiertas**: negocio (onboarding, incidencias y proveedores), autenticación, navegación, errores y rendimiento.
-- **Entrega**: 4 eventos en *stream* (seguridad, errores en producción y saturación de sucursales) y 21 en *batch*.
-- **Privacidad**: ningún evento lleva email, nombre, teléfono, dirección ni texto libre. El único identificador derivado de un dato personal es `email_hash` en `auth_login_failed`, calculado con un HMAC de clave secreta.
+- **30 eventos** diseñados: los **5 obligatorios** del briefing oficial de TrackFlow ([`06-telemetry.es.md`](../briefings/06-telemetry.es.md) §3), todos del sistema de inventario, y **25 oportunidades** identificadas.
+- **Categorías cubiertas**: negocio (inventario, alta de marcas, incidencias y proveedores), autenticación, navegación, errores y rendimiento.
+- **Entrega**: 5 eventos en *stream* (`stock_threshold_triggered`, `incident_backlog_threshold_triggered`, `auth_login_failed`, `frontend_error_uncaught`, `api_error_occurred`) y 25 en *batch*.
+- **Privacidad**: ningún evento lleva email, nombre, teléfono, dirección ni texto libre. Los eventos de inventario no llevan datos del transportista ni del destinatario final. El único identificador derivado de un dato personal es `email_hash` en `auth_login_failed` (HMAC con clave secreta).
 
 ## 1. Alcance y punto de partida
 
-TrackFlow no tiene un sistema de inventario. Su proceso operativo central es el **gestor de incidencias**: alta → ciclo de vida → resolución, con reglas que el servidor hace cumplir. Por eso, en este plan las piezas que el enunciado describe para un inventario se traducen así:
+El sistema de inventario (Milestone 5: SKU, entradas y salidas de stock en Los Ángeles y Zaragoza) es **el corazón operativo de TrackFlow**, y el briefing centra en él la telemetría obligatoria. Estos datos alimentarán más adelante el dashboard de operaciones de almacén de Ana y el dashboard ejecutivo de Thomas, agregados por almacén, por cliente y por país.
 
-| Concepto del enunciado (inventario) | Equivalente en TrackFlow |
+| Entidad del briefing | En el monorepo |
 |---|---|
-| Pedido de entrada/salida trazable a un usuario | Alta (`POST /api/incidents`) y cambio de estado (`PATCH …/status`) de una incidencia, siempre con un usuario autenticado |
-| Intento de modificar el stock directamente (rechazado) | Intento de transición fuera del ciclo de vida o sobre un estado final → `incident_status_change_rejected` |
-| Validación fallida | `POST /api/incidents` con 400 → `incident_validation_failed` |
-| Alerta de umbral mínimo de stock | La sucursal supera N incidencias pendientes → `incident_backlog_threshold_triggered` |
+| `Product` (SKU de un cliente) | `SKU` en `services/api/inventory` |
+| `InboundOrder` | `StockEntry` · `POST /inventory/orders/inbound` |
+| `OutboundOrder` | `StockExit` · `POST /inventory/orders/outbound` |
+| `warehouse` | `LA` / `ZGZ` en la base de datos → `los_angeles` / `zaragoza` en telemetría |
+| `client` | `client_name` del SKU → `client_id` = slug estable (`PureStep Footwear` → `purestep-footwear`) |
 
-Además se cubren las otras partes de la plataforma que hoy son una caja negra:
-- el **formulario de onboarding** del website, que alimenta los KPI de `CONTEXT.md` §7;
-- la **cola de solicitudes**, el **directorio de proveedores** y el **análisis de CSV** del backoffice;
-- la **autenticación** del backoffice y del Talent Tracker;
-- la **navegación**, los **errores** y el **rendimiento** de las tres apps y de la API.
+Además se cubren el resto de piezas de la plataforma, que hoy son una caja negra: el **formulario de alta de marcas** del website (Milestone 1), el **gestor de incidencias**, el **directorio de proveedores**, el **análisis de CSV**, la **autenticación**, la **navegación**, los **errores** y el **rendimiento**.
 
-## 2. Métricas obligatorias (BRIEFING §7)
+## 2. Métricas obligatorias (briefing 06-telemetry §3)
 
-| ID | Métrica | Evento(s) que la alimentan | Cálculo |
+**Campos mínimos en `properties`** de los cinco: `warehouse` (`los_angeles`/`zaragoza`), `client_id`, `product_id` (SKU), `product_category` y `quantity`.
+
+| event_type | Se dispara cuando… | Decisión que habilita | Agregación |
 |---|---|---|---|
-| MM-1 | Onboarding conversion rate | `lead_form_submitted` | `count(is_valid=true) / count(*)` por día |
-| MM-2 | Lead validation error rate | `lead_form_submitted` | `count(len(invalid_fields)>0) / count(*)` por día. El desglose por campo sale de `invalid_fields` |
-| MM-3 | Average onboarding time | `lead_status_changed` | `avg(timestamp − lead_created_at)` donde `to_status='activado'` |
-| MM-4 | Monthly volume forecast | `lead_form_submitted` | `sum(monthly_volume)` donde `is_valid=true`, por `country` |
-| MM-5 | Incidencias abiertas por día | `incident_created` | `count(*)` por día × `branch` × `origin` × `category` |
-| MM-6 | Tiempo medio de resolución | `incident_status_changed` | `avg(timestamp − incident_created_at)` donde `to_status='resolved'`, por `category` y `branch` |
-| MM-7 | Cambios de estado rechazados | `incident_status_change_rejected` | `count(*)` por día × `reason` × `current_status` |
+| `inbound_order_created` | Un almacén registra la recepción de mercancía de un cliente | Planificar capacidad y personal según el volumen entrante (Ana) | `sum(quantity)` por día × `warehouse` × `client_id` |
+| `outbound_order_created` | Un almacén completa el picking y despacho de un pedido | Detectar cuellos de botella antes de que afecten al SLA (Ana) | `count(*)` y `sum(quantity)` por día × `warehouse` × `client_id` |
+| `stock_threshold_triggered` | El stock de un SKU cae por debajo del mínimo configurado para ese cliente | Avisar al cliente y a Comercial antes de un quiebre de stock (Miguel) | `count(*)` por semana × `client_id` × `product_id` |
+| `direct_stock_edit_rejected` | Alguien intenta modificar el stock fuera de una orden y el sistema lo rechaza | Reforzar formación o permisos en el almacén donde más ocurre | `count(*)` por semana × `warehouse` × `actor_role` |
+| `inventory_discrepancy_detected` | Un conteo físico o una auditoría encuentra diferencia con el sistema | Priorizar auditorías en los SKUs con más discrepancias (Ana) | `count(*)` y `sum(quantity)` por mes × `warehouse` × `product_id` |
+
+> **Requisitos de implementación.** `stock_threshold_triggered` necesita un umbral mínimo por SKU y cliente (`min_stock_threshold`), que todavía no existe en el modelo del Milestone 5 y se añadirá en el proyecto de captura. `direct_stock_edit_rejected` se emite en un endpoint de edición directa que siempre responde 405/409 y deja constancia; hoy esa ruta no existe y cualquier intento devuelve 405 de FastAPI sin evento. `inventory_discrepancy_detected` se emite al registrar un conteo (`exit_type=loss` o un endpoint de conteo cíclico).
 
 ## 3. Flujo principal y puntos de instrumentación
 
 ```mermaid
 flowchart LR
-  A[Login<br/>auth_login_succeeded / auth_login_failed] --> B[Abre /incidents<br/>page_viewed]
-  B --> C[Filtra<br/>incident_list_filtered]
-  B --> D[Abre /incidents/new<br/>page_viewed]
-  D --> E{POST /api/incidents}
-  E -- 400 --> F[incident_validation_failed]
-  E -- 201 --> G[incident_created]
-  G --> H{¿Pendientes de la sucursal ≥ umbral?}
-  H -- sí --> I[incident_backlog_threshold_triggered]
-  C --> J{PATCH /status}
-  J -- 200 --> K[incident_status_changed]
-  J -- 400 ciclo de vida --> L[incident_status_change_rejected]
-  K --> H
-  B -. token caducado .-> M[session_expired]
-  E -. 5xx .-> N[api_error_occurred]
+  A[Recepción en almacén] --> B{POST /inventory/orders/inbound}
+  B -- 201 --> C[inbound_order_created]
+  D[Picking y despacho] --> E{POST /inventory/orders/outbound}
+  E -- 201 --> F[outbound_order_created]
+  F --> G{¿stock_after < min_stock_threshold?}
+  G -- sí --> H[stock_threshold_triggered]
+  I[Intento de editar stock a mano] --> J{PATCH /inventory/products/id/stock}
+  J -- 409 --> K[direct_stock_edit_rejected]
+  L[Conteo físico / auditoría] --> M{¿contado ≠ sistema?}
+  M -- sí --> N[inventory_discrepancy_detected]
 ```
 
-Hay **8 puntos de instrumentación** en el flujo de incidencias: login, vista, filtro, validación fallida, alta, umbral, transición válida y transición rechazada. A eso se suman la sesión caducada y los errores 5xx, que son transversales.
-
-El flujo de onboarding (website) es: `page_viewed` → `lead_form_started` → `lead_form_submitted` (válido o inválido). Después, en el backoffice: `lead_status_changed` hasta `activado`.
+Hay **5 puntos de instrumentación obligatorios**, todos en la API y **después de confirmar la escritura**. El flujo de incidencias (alta → ciclo de vida) y el formulario del website se instrumentan igual que antes; ver §6.
 
 ## 4. Catálogo completo
 
-| # | event_type | Categoría | Grupo | Métrica BRIEFING | Entrega | PII |
-|---|---|---|---|---|---|---|
-| 1 | `lead_form_submitted` | Negocio · onboarding | **Obligatorio** | MM-1, MM-2, MM-4 | batch | Fuente con PII → excluida |
-| 2 | `lead_status_changed` | Negocio · onboarding | **Obligatorio** | MM-1, MM-3 | batch | No |
-| 3 | `incident_created` | Negocio · incidencias | **Obligatorio** | MM-5 | batch | Fuente con PII → excluida |
-| 4 | `incident_status_changed` | Negocio · incidencias | **Obligatorio** | MM-6 | batch | No |
-| 5 | `incident_status_change_rejected` | Negocio · incidencias | **Obligatorio** | MM-7 | batch | No |
-| 6 | `lead_form_started` | Navegación | Oportunidad | — | batch | No |
-| 7 | `incident_validation_failed` | Errores | Oportunidad | — | batch | Fuente con PII → excluida |
-| 8 | `incident_backlog_threshold_triggered` | Negocio · incidencias | Oportunidad | — | stream | No |
-| 9 | `incident_list_filtered` | Navegación | Oportunidad | — | batch | No |
-| 10 | `supplier_created` | Negocio · proveedores | Oportunidad | — | batch | Fuente con PII → excluida |
-| 11 | `supplier_rate_updated` | Negocio · proveedores | Oportunidad | — | batch | No |
-| 12 | `supplier_status_changed` | Negocio · proveedores | Oportunidad | — | batch | No |
-| 13 | `csv_analysis_completed` | Negocio · incidencias | Oportunidad | — | batch | Fuente con PII → excluida |
-| 14 | `csv_results_exported` | Negocio · incidencias | Oportunidad | — | batch | No |
-| 15 | `auth_login_succeeded` | Autenticación | Oportunidad | — | batch | No |
-| 16 | `auth_login_failed` | Autenticación | Oportunidad | — | stream | Sí → seudonimizada |
-| 17 | `session_expired` | Autenticación | Oportunidad | — | batch | No |
-| 18 | `user_registered` | Autenticación | Oportunidad | — | batch | Fuente con PII → excluida |
-| 19 | `page_viewed` | Navegación | Oportunidad | — | batch | Fuente con PII → excluida |
-| 20 | `ui_error_displayed` | Errores | Oportunidad | — | batch | Fuente con PII → excluida |
-| 21 | `ui_error_retry_clicked` | Errores | Oportunidad | — | batch | No |
-| 22 | `frontend_error_uncaught` | Errores | Oportunidad | — | stream | Fuente con PII → excluida |
-| 23 | `api_error_occurred` | Errores | Oportunidad | — | stream | Fuente con PII → excluida |
-| 24 | `api_request_completed` | Rendimiento | Oportunidad | — | batch | No |
-| 25 | `web_vitals_reported` | Rendimiento | Oportunidad | — | batch | No |
+| # | event_type | Categoría | Grupo | Entrega | PII |
+|---|---|---|---|---|---|
+| 1 | `inbound_order_created` | Negocio · inventario | **Obligatorio** | batch | No |
+| 2 | `outbound_order_created` | Negocio · inventario | **Obligatorio** | batch | No |
+| 3 | `stock_threshold_triggered` | Negocio · inventario | **Obligatorio** | stream | No |
+| 4 | `direct_stock_edit_rejected` | Negocio · inventario | **Obligatorio** | batch | No |
+| 5 | `inventory_discrepancy_detected` | Negocio · inventario | **Obligatorio** | batch | No |
+| 6 | `lead_form_submitted` | Negocio · alta de marcas | Oportunidad | batch | Fuente con PII → excluida |
+| 7 | `lead_status_changed` | Negocio · alta de marcas | Oportunidad | batch | No |
+| 8 | `incident_created` | Negocio · incidencias | Oportunidad | batch | Fuente con PII → excluida |
+| 9 | `incident_status_changed` | Negocio · incidencias | Oportunidad | batch | No |
+| 10 | `incident_status_change_rejected` | Negocio · incidencias | Oportunidad | batch | No |
+| 11 | `lead_form_started` | Navegación | Oportunidad | batch | No |
+| 12 | `incident_validation_failed` | Errores | Oportunidad | batch | Fuente con PII → excluida |
+| 13 | `incident_backlog_threshold_triggered` | Negocio · incidencias | Oportunidad | stream | No |
+| 14 | `incident_list_filtered` | Navegación | Oportunidad | batch | No |
+| 15 | `supplier_created` | Negocio · proveedores | Oportunidad | batch | Fuente con PII → excluida |
+| 16 | `supplier_rate_updated` | Negocio · proveedores | Oportunidad | batch | No |
+| 17 | `supplier_status_changed` | Negocio · proveedores | Oportunidad | batch | No |
+| 18 | `csv_analysis_completed` | Negocio · incidencias | Oportunidad | batch | Fuente con PII → excluida |
+| 19 | `csv_results_exported` | Negocio · incidencias | Oportunidad | batch | No |
+| 20 | `auth_login_succeeded` | Autenticación | Oportunidad | batch | No |
+| 21 | `auth_login_failed` | Autenticación | Oportunidad | stream | Sí → seudonimizada |
+| 22 | `session_expired` | Autenticación | Oportunidad | batch | No |
+| 23 | `user_registered` | Autenticación | Oportunidad | batch | Fuente con PII → excluida |
+| 24 | `page_viewed` | Navegación | Oportunidad | batch | Fuente con PII → excluida |
+| 25 | `ui_error_displayed` | Errores | Oportunidad | batch | Fuente con PII → excluida |
+| 26 | `ui_error_retry_clicked` | Errores | Oportunidad | batch | No |
+| 27 | `frontend_error_uncaught` | Errores | Oportunidad | stream | Fuente con PII → excluida |
+| 28 | `api_error_occurred` | Errores | Oportunidad | stream | Fuente con PII → excluida |
+| 29 | `api_request_completed` | Rendimiento | Oportunidad | batch | No |
+| 30 | `web_vitals_reported` | Rendimiento | Oportunidad | batch | No |
 
 ### 4.1 Justificación de cada evento
 
 Cada evento cumple la regla «Capturamos X porque necesitamos saber Y, lo que nos permite decidir Z». Los que no la cumplían se descartaron (ver §8).
 
-- **`lead_form_submitted`** — Capturamos `lead_form_submitted` porque necesitamos saber qué proporción de solicitudes llega válida, qué campos fallan más y cuánto volumen mensual declaran las cuentas por país, lo que nos permite tomar la decisión de priorizar qué validaciones/UX del formulario corregir, y dimensionar capacidad operativa por país con el volumen previsto.
-- **`lead_status_changed`** — Capturamos `lead_status_changed` porque necesitamos saber cuánto tarda de media una cuenta desde el registro hasta la activación y en qué estado se atascan, lo que nos permite tomar la decisión de reasignar al equipo comercial las solicitudes estancadas y fijar objetivos de tiempo de onboarding.
-- **`incident_created`** — Capturamos `incident_created` porque necesitamos saber cuántas incidencias se abren por día, por sucursal, origen y categoría, lo que nos permite tomar la decisión de reforzar personal o revisar procesos en la sucursal/categoría con más incidencias.
-- **`incident_status_changed`** — Capturamos `incident_status_changed` porque necesitamos saber cuánto se tarda en resolver una incidencia por categoría y sucursal, y cuántas se descartan, lo que nos permite tomar la decisión de fijar y vigilar un objetivo de tiempo de resolución (p. ej. 72 h) y detectar categorías que se descartan sin resolver.
+- **`inbound_order_created`** — Capturamos `inbound_order_created` porque necesitamos saber cuánto volumen entra, por cliente y por almacén, lo que nos permite tomar la decisión de planificar capacidad de almacén y personal según el volumen entrante (Ana).
+- **`outbound_order_created`** — Capturamos `outbound_order_created` porque necesitamos saber cuántos pedidos se procesan, por cliente y almacén, y a qué ritmo, lo que nos permite tomar la decisión de detectar cuellos de botella operativos antes de que afecten al SLA de entrega (Ana).
+- **`stock_threshold_triggered`** — Capturamos `stock_threshold_triggered` porque necesitamos saber con qué frecuencia un cliente se queda sin stock disponible de un SKU, lo que nos permite tomar la decisión de alertar al cliente y al equipo comercial antes de un quiebre de stock (Miguel).
+- **`direct_stock_edit_rejected`** — Capturamos `direct_stock_edit_rejected` porque necesitamos saber si el personal de almacén intenta saltarse el control de trazabilidad, lo que nos permite tomar la decisión de reforzar la formación o los permisos en el almacén donde más ocurre.
+- **`inventory_discrepancy_detected`** — Capturamos `inventory_discrepancy_detected` porque necesitamos saber en qué SKUs y almacenes ocurren más discrepancias, lo que nos permite tomar la decisión de priorizar auditorías de inventario en los SKUs con mayor tasa de discrepancia (Ana).
+- **`lead_form_submitted`** — Capturamos `lead_form_submitted` porque necesitamos saber qué proporción de solicitudes de marcas llega válida, qué campos fallan más y qué volumen, país, tipo de producto y servicios declaran, lo que nos permite tomar la decisión de corregir las validaciones o la UX que más bloquean y pasar a Comercial (Miguel) una previsión de demanda por país y servicio.
+- **`lead_status_changed`** — Capturamos `lead_status_changed` porque necesitamos saber cuánto tarda de media una marca desde el registro hasta la activación y en qué estado se atascan, lo que nos permite tomar la decisión de reasignar al equipo comercial las solicitudes estancadas y fijar objetivos de tiempo de alta.
+- **`incident_created`** — Capturamos `incident_created` porque necesitamos saber cuántas incidencias se abren por día, por sede, origen y categoría, lo que nos permite tomar la decisión de reforzar personal o revisar procesos en la sede/categoría con más incidencias.
+- **`incident_status_changed`** — Capturamos `incident_status_changed` porque necesitamos saber cuánto se tarda en resolver una incidencia por categoría y sede, y cuántas se descartan, lo que nos permite tomar la decisión de fijar y vigilar un objetivo de tiempo de resolución (p. ej. 72 h) y detectar categorías que se descartan sin resolver.
 - **`incident_status_change_rejected`** — Capturamos `incident_status_change_rejected` porque necesitamos saber si los operadores intentan saltarse el ciclo de vida y desde qué estado, lo que nos permite tomar la decisión de formar al equipo o, si es un patrón legítimo (p. ej. reabrir), revisar la regla de negocio con operaciones.
 - **`lead_form_started`** — Capturamos `lead_form_started` porque necesitamos saber cuántos visitantes empiezan el formulario y no lo envían (abandono), lo que nos permite tomar la decisión de simplificar el formulario o mover campos opcionales si el abandono es alto.
 - **`incident_validation_failed`** — Capturamos `incident_validation_failed` porque necesitamos saber qué campos del formulario de incidencias causan más rechazos, lo que nos permite tomar la decisión de mejorar ayudas/valores por defecto en el formulario o corregir desajustes entre la validación de cliente y servidor.
-- **`incident_backlog_threshold_triggered`** — Capturamos `incident_backlog_threshold_triggered` porque necesitamos saber cuándo y dónde se acumula trabajo pendiente por encima de la capacidad, lo que nos permite tomar la decisión de avisar al responsable de sucursal para redistribuir personal ese mismo día.
-- **`incident_list_filtered`** — Capturamos `incident_list_filtered` porque necesitamos saber qué vistas del listado usan los operadores (p. ej. si siempre filtran por su sucursal), lo que nos permite tomar la decisión de definir filtros por defecto según rol/sucursal y vistas guardadas.
+- **`incident_backlog_threshold_triggered`** — Capturamos `incident_backlog_threshold_triggered` porque necesitamos saber cuándo y dónde se acumula trabajo pendiente por encima de la capacidad, lo que nos permite tomar la decisión de avisar al responsable de sede para redistribuir personal ese mismo día.
+- **`incident_list_filtered`** — Capturamos `incident_list_filtered` porque necesitamos saber qué vistas del listado usan los operadores (p. ej. si siempre filtran por su sede), lo que nos permite tomar la decisión de definir filtros por defecto según rol/sede y vistas guardadas.
 - **`supplier_created`** — Capturamos `supplier_created` porque necesitamos saber cómo crece la red de partners por país y categoría, lo que nos permite tomar la decisión de detectar huecos de cobertura (categorías sin proveedor en un país) antes de contratar.
 - **`supplier_rate_updated`** — Capturamos `supplier_rate_updated` porque necesitamos saber con qué frecuencia y en qué magnitud cambian las tarifas por categoría, lo que nos permite tomar la decisión de anticipar el impacto en coste por envío y renegociar con los proveedores que más suben.
 - **`supplier_status_changed`** — Capturamos `supplier_status_changed` porque necesitamos saber qué categorías de proveedor se suspenden más, lo que nos permite tomar la decisión de buscar alternativas en categorías con alta rotación de proveedores.
@@ -160,7 +163,7 @@ Todos los eventos comparten el mismo sobre. El payload específico va siempre de
     "current_status": "resolved",
     "requested_status": "open",
     "reason": "final_state",
-    "branch": "zaragoza"
+    "branch": "zaragoza_warehouse"
   }
 }
 ```
@@ -177,31 +180,133 @@ Todos los eventos comparten el mismo sobre. El payload específico va siempre de
 
 Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coinciden con `event-schemas.json`.
 
-### `lead_form_submitted`
+### `inbound_order_created`
 
-- **Grupo:** Obligatorio (MM-1, MM-2, MM-4) · **Categoría:** Negocio · onboarding · **Entrega:** batch
-- **Dónde se emite:** website (cliente) — handler `submit` de `<LeadForm />`
-- **Cuándo:** Cada intento de envío del formulario de onboarding, sea válido o no (después de la validación del navegador y de las reglas de CONTEXT.md §5).
-- **Por qué batch:** Los KPI de conversión, error de validación y volumen previsto se revisan por día/semana; ninguna decisión depende de verlos en segundos.
-- **Datos sensibles / PII:** El formulario contiene `fullName`, `companyName`, `email` y `phone`: **ninguno se emite**. Solo se envían nombres de campo inválidos, país, volumen y segmento. `userId` es null (visitante anónimo); la sesión se identifica con `sessionId` aleatorio.
+- **Grupo:** Obligatorio (briefing 06-telemetry §3) · **Categoría:** Negocio · inventario · **Entrega:** batch
+- **Dónde se emite:** API — `POST /inventory/orders/inbound`, después de confirmar el `commit` (201)
+- **Cuándo:** Cada entrada de stock registrada en Los Ángeles o Zaragoza.
+- **Por qué batch:** La capacidad y el personal se planifican por día y semana; nadie decide nada en segundos con una recepción.
+- **Datos sensibles / PII:** Ninguno. Solo describe inventario de almacén: sin transportista, sin tracking y sin datos del destinatario final.
 
 **Allowlist de `properties`** (cualquier otra clave se rechaza):
 
 | Propiedad | Tipo | Obligatoria | Descripción |
 |---|---|---|---|
-| `is_valid` | boolean | Sí | true si el envío cumple todas las reglas de CONTEXT.md §5. |
-| `invalid_fields` | array de `fullName` \| `companyName` \| `email` \| `country` \| `phone` \| `monthlyVolume` | Sí | Campos que fallaron (vacío si is_valid=true). Solo nombres de campo, nunca valores. |
-| `country` | string (`Mexico` \| `Espana`) | No | País declarado (si es uno de los válidos). |
-| `monthly_volume` | integer | No | Envíos mensuales declarados (entero > 0). Dato de negocio, no personal. |
-| `segment` | string (`small` \| `mid_market` \| `enterprise`) | No | Segmento derivado de monthly_volume (CONTEXT.md §6). |
-| `attempt_number` | integer | Sí | Nº de intento de envío dentro de la sesión (1 = primero). |
+| `order_id` | integer | Sí | ID de la entrada de stock. |
+| `warehouse` | string (`los_angeles` \| `zaragoza`) | Sí | Almacén del movimiento (briefing 06-telemetry §3). |
+| `client_id` | string | Sí | Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`). Nunca datos del consumidor final. |
+| `product_id` | string | Sí | SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`). |
+| `product_category` | string (`fashion` \| `electronics` \| `cosmetics`) | Sí | Categoría del SKU. |
+| `quantity` | integer | Sí | Unidades recibidas. |
+| `stock_after` | integer | Sí | Stock del SKU en ese almacén tras la entrada. |
 
+### `outbound_order_created`
+
+- **Grupo:** Obligatorio (briefing 06-telemetry §3) · **Categoría:** Negocio · inventario · **Entrega:** batch
+- **Dónde se emite:** API — `POST /inventory/orders/outbound`, después del `commit` (201)
+- **Cuándo:** Cada salida de stock confirmada (despacho o pérdida).
+- **Por qué batch:** Los cuellos de botella se ven en el ritmo diario por almacén; el riesgo inmediato (quedarse sin stock) lo cubre `stock_threshold_triggered`.
+- **Datos sensibles / PII:** Ninguno. Solo describe inventario de almacén: sin transportista, sin tracking y sin datos del destinatario final.
+
+**Allowlist de `properties`** (cualquier otra clave se rechaza):
+
+| Propiedad | Tipo | Obligatoria | Descripción |
+|---|---|---|---|
+| `order_id` | integer | Sí | ID de la salida de stock. |
+| `warehouse` | string (`los_angeles` \| `zaragoza`) | Sí | Almacén del movimiento (briefing 06-telemetry §3). |
+| `client_id` | string | Sí | Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`). Nunca datos del consumidor final. |
+| `product_id` | string | Sí | SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`). |
+| `product_category` | string (`fashion` \| `electronics` \| `cosmetics`) | Sí | Categoría del SKU. |
+| `quantity` | integer | Sí | Unidades despachadas. |
+| `exit_type` | string (`dispatch` \| `loss`) | Sí | Tipo de salida del inventario (Milestone 5). |
+| `stock_after` | integer | Sí | Stock del SKU en ese almacén tras la salida. |
+
+### `stock_threshold_triggered`
+
+- **Grupo:** Obligatorio (briefing 06-telemetry §3) · **Categoría:** Negocio · inventario · **Entrega:** stream
+- **Dónde se emite:** API — tras cada salida, si `stock_after` < `min_stock_threshold` del SKU
+- **Cuándo:** Cuando el stock de un SKU cruza hacia abajo su umbral mínimo (con histéresis, ver §7.2).
+- **Por qué stream:** Avisar al cliente y a Comercial **antes** del quiebre de stock: si se sabe al día siguiente, el pedido ya se ha perdido.
+- **Datos sensibles / PII:** Ninguno. Solo describe inventario de almacén: sin transportista, sin tracking y sin datos del destinatario final.
+
+**Allowlist de `properties`** (cualquier otra clave se rechaza):
+
+| Propiedad | Tipo | Obligatoria | Descripción |
+|---|---|---|---|
+| `warehouse` | string (`los_angeles` \| `zaragoza`) | Sí | Almacén del movimiento (briefing 06-telemetry §3). |
+| `client_id` | string | Sí | Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`). Nunca datos del consumidor final. |
+| `product_id` | string | Sí | SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`). |
+| `product_category` | string (`fashion` \| `electronics` \| `cosmetics`) | Sí | Categoría del SKU. |
+| `quantity` | integer | Sí | Stock actual del SKU en ese almacén (por debajo del umbral). |
+| `min_threshold` | integer | Sí | Umbral mínimo configurado para ese SKU y cliente. |
+
+### `direct_stock_edit_rejected`
+
+- **Grupo:** Obligatorio (briefing 06-telemetry §3) · **Categoría:** Negocio · inventario · **Entrega:** batch
+- **Dónde se emite:** API — endpoint de edición directa de stock, que siempre rechaza (409)
+- **Cuándo:** Cada intento de modificar `current_stock` fuera de una orden.
+- **Por qué batch:** La decisión (formación o permisos) es semanal; no hay daño en curso porque la API ya ha rechazado el cambio.
+- **Datos sensibles / PII:** Ninguno. Solo describe inventario de almacén: sin transportista, sin tracking y sin datos del destinatario final.
+
+**Allowlist de `properties`** (cualquier otra clave se rechaza):
+
+| Propiedad | Tipo | Obligatoria | Descripción |
+|---|---|---|---|
+| `warehouse` | string (`los_angeles` \| `zaragoza`) | Sí | Almacén del movimiento (briefing 06-telemetry §3). |
+| `client_id` | string | Sí | Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`). Nunca datos del consumidor final. |
+| `product_id` | string | Sí | SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`). |
+| `product_category` | string (`fashion` \| `electronics` \| `cosmetics`) | Sí | Categoría del SKU. |
+| `quantity` | integer | Sí | Variación de stock que se intentó aplicar (puede ser negativa). |
+| `attempted_route` | string | Sí | Plantilla de la ruta llamada, sin IDs reales (ej. `/inventory/products/{id}`). |
+| `actor_role` | string (`admin` \| `manager` \| `user`) | Sí | Rol de quien lo intentó (el usuario va en `userId`). |
+
+### `inventory_discrepancy_detected`
+
+- **Grupo:** Obligatorio (briefing 06-telemetry §3) · **Categoría:** Negocio · inventario · **Entrega:** batch
+- **Dónde se emite:** API — al registrar un conteo físico o una auditoría con diferencia
+- **Cuándo:** Cada conteo cuyo resultado no coincide con el stock del sistema.
+- **Por qué batch:** Las auditorías se priorizan por mes; un caso aislado no cambia la decisión.
+- **Datos sensibles / PII:** Ninguno. Solo describe inventario de almacén: sin transportista, sin tracking y sin datos del destinatario final.
+
+**Allowlist de `properties`** (cualquier otra clave se rechaza):
+
+| Propiedad | Tipo | Obligatoria | Descripción |
+|---|---|---|---|
+| `warehouse` | string (`los_angeles` \| `zaragoza`) | Sí | Almacén del movimiento (briefing 06-telemetry §3). |
+| `client_id` | string | Sí | Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`). Nunca datos del consumidor final. |
+| `product_id` | string | Sí | SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`). |
+| `product_category` | string (`fashion` \| `electronics` \| `cosmetics`) | Sí | Categoría del SKU. |
+| `quantity` | integer | Sí | Unidades de diferencia, en valor absoluto. |
+| `system_stock` | integer | Sí | Stock según el sistema. |
+| `counted_stock` | integer | Sí | Stock contado físicamente. |
+| `detection_source` | string (`cycle_count` \| `audit`) | Sí | Conteo cíclico o auditoría. |
+
+### `lead_form_submitted`
+
+- **Grupo:** Oportunidad · **Categoría:** Negocio · alta de marcas · **Entrega:** batch
+- **Dónde se emite:** website (cliente) — handler `submit` de `<LeadForm />`
+- **Cuándo:** Cada intento de envío del formulario de alta de marcas, sea válido o no (después de las 8 validaciones del briefing 01-web-fundamentals).
+- **Por qué batch:** La conversión, los errores de validación y la demanda declarada se revisan por día o semana; ninguna decisión depende de verlos en segundos.
+- **Datos sensibles / PII:** El formulario contiene empresa, persona de contacto, email, teléfono, web y comentarios: **ninguno se emite**. Solo se envían nombres de campo inválidos y respuestas cerradas (país, volumen, tipo de producto, servicios, 3PL). `userId` es null (visitante anónimo); la sesión se identifica con `sessionId` aleatorio.
+
+**Allowlist de `properties`** (cualquier otra clave se rechaza):
+
+| Propiedad | Tipo | Obligatoria | Descripción |
+|---|---|---|---|
+| `is_valid` | boolean | Sí | true si el envío cumple las 8 validaciones del briefing 01. |
+| `invalid_fields` | array de `companyName` \| `contactName` \| `email` \| `phone` \| `website` \| `country` \| `productType` \| `monthlyVolume` \| `services` \| `current3pl` \| `comments` \| `privacy` | Sí | Campos que fallaron; solo nombres, nunca valores. |
+| `country` | string (`united_states` \| `spain` \| `both` \| `other`) | No | País de operación principal declarado. |
+| `monthly_volume` | string (`0-100` \| `101-500` \| `501-2000` \| `2000+` \| `unsure`) | No | Rango de envíos mensuales declarado. |
+| `product_type` | string (`fashion` \| `electronics` \| `cosmetics` \| `food` \| `other`) | No | Tipo de producto declarado. |
+| `services` | array de `warehousing` \| `last_mile` \| `reverse_logistics` | No | Servicios de interés marcados. |
+| `current_3pl` | string (`yes` \| `no` \| `evaluating`) | No | ¿Trabaja ya con otro 3PL? |
+| `attempt_number` | integer | Sí | Nº de intento de envío dentro de la sesión. |
 ### `lead_status_changed`
 
-- **Grupo:** Obligatorio (MM-1, MM-3) · **Categoría:** Negocio · onboarding · **Entrega:** batch
+- **Grupo:** Oportunidad · **Categoría:** Negocio · alta de marcas · **Entrega:** batch
 - **Dónde se emite:** API — servicio de solicitudes (cola «Solicitudes» del backoffice)
-- **Cuándo:** Cada cambio de estado de una solicitud de onboarding confirmado en servidor (nuevo → en_revision → contactado → activado | descartado).
-- **Por qué batch:** El tiempo medio de onboarding es un KPI semanal; el seguimiento individual ya lo da la propia cola del backoffice.
+- **Cuándo:** Cada cambio de estado de una solicitud de alta de marca confirmado en servidor (nuevo → en_revision → contactado → activado | descartado).
+- **Por qué batch:** El tiempo medio de alta es un indicador semanal; el seguimiento individual ya lo da la propia cola del backoffice.
 - **Dependencia:** La cola de solicitudes del backoffice es hoy un listado estático. Este evento se emite cuando la cola se persista en `services/` (ver progress.md «Siguiente»).
 - **Datos sensibles / PII:** Sin PII: se usa `lead_id` y no el nombre/email del contacto.
 
@@ -212,17 +317,16 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 | `lead_id` | string | Sí | Identificador interno de la solicitud (no contiene datos personales). |
 | `from_status` | string (`nuevo` \| `en_revision` \| `contactado` \| `activado` \| `descartado`) | Sí | Estado anterior. |
 | `to_status` | string (`nuevo` \| `en_revision` \| `contactado` \| `activado` \| `descartado`) | Sí | Estado nuevo. |
-| `country` | string (`Mexico` \| `Espana`) | Sí | País de la cuenta. |
-| `segment` | string (`small` \| `mid_market` \| `enterprise`) | Sí | Segmento por volumen. |
+| `country` | string (`united_states` \| `spain` \| `both` \| `other`) | Sí | País de operación principal declarado. |
 | `lead_created_at` | string | Sí | Fecha de registro de la solicitud (ISO 8601) — permite calcular el tiempo hasta activación sin joins. |
 | `actor_role` | string (`admin` \| `manager` \| `user`) | Sí | Rol de quien hace el cambio. |
-
+| `monthly_volume` | string (`0-100` \| `101-500` \| `501-2000` \| `2000+` \| `unsure`) | Sí | Rango de envíos mensuales declarado. |
 ### `incident_created`
 
-- **Grupo:** Obligatorio (MM-5) · **Categoría:** Negocio · incidencias · **Entrega:** batch
+- **Grupo:** Oportunidad · **Categoría:** Negocio · incidencias · **Entrega:** batch
 - **Dónde se emite:** API — `POST /api/incidents` tras insertar (201)
 - **Cuándo:** Alta correcta de una incidencia desde el formulario del backoffice. El seed histórico no emite eventos (sus datos ya están en la tabla).
-- **Por qué batch:** El volumen diario por sucursal se consume en el informe operativo; la reacción inmediata a picos la cubre `incident_backlog_threshold_triggered` (stream).
+- **Por qué batch:** El volumen diario por sede se consume en el informe operativo; la reacción inmediata a picos la cubre `incident_backlog_threshold_triggered` (stream).
 - **Datos sensibles / PII:** `title` y `description` son texto libre y pueden contener nombres, direcciones o números de seguimiento: **no se emiten**; solo `description_length`.
 
 **Allowlist de `properties`** (cualquier otra clave se rechaza):
@@ -230,15 +334,14 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 | Propiedad | Tipo | Obligatoria | Descripción |
 |---|---|---|---|
 | `incident_id` | integer | Sí | ID de la incidencia creada. |
-| `category` | string (`lost_parcel` \| `delayed_delivery` \| `wrong_address` \| `return_request` \| `damage`) | Sí | Categoría (company-BRIEFING.md §2). |
+| `category` | string (`lost_parcel` \| `delivery_failure` \| `inventory_discrepancy` \| `carrier_issue` \| `returns_issue` \| `warehouse_incident` \| `system_failure` \| `client_complaint` \| `other`) | Sí | Categoría oficial (briefing centralized-incident-manager). |
 | `origin` | string (`customer` \| `branch` \| `internal`) | Sí | Origen del reporte. |
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | Sí | Sucursal (company-BRIEFING.md §3). |
+| `branch` | string (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | Sí | Sede oficial (briefing centralized-incident-manager). |
 | `initial_status` | string (`open` \| `in_progress`) | Sí | Estado con el que nace. |
 | `description_length` | integer | Sí | Longitud de la descripción en caracteres (el texto no se emite). |
-
 ### `incident_status_changed`
 
-- **Grupo:** Obligatorio (MM-6) · **Categoría:** Negocio · incidencias · **Entrega:** batch
+- **Grupo:** Oportunidad · **Categoría:** Negocio · incidencias · **Entrega:** batch
 - **Dónde se emite:** API — `PATCH /api/incidents/{id}/status` con 200
 - **Cuándo:** Transición de estado válida y persistida.
 - **Por qué batch:** El tiempo medio de resolución es un indicador de tendencia diario/semanal.
@@ -251,15 +354,14 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 | `incident_id` | integer | Sí | ID de la incidencia. |
 | `from_status` | string (`open` \| `in_progress` \| `resolved` \| `discarded`) | Sí | Estado anterior. |
 | `to_status` | string (`open` \| `in_progress` \| `resolved` \| `discarded`) | Sí | Estado nuevo. |
-| `category` | string (`lost_parcel` \| `delayed_delivery` \| `wrong_address` \| `return_request` \| `damage`) | Sí | Categoría. |
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | Sí | Sucursal. |
+| `category` | string (`lost_parcel` \| `delivery_failure` \| `inventory_discrepancy` \| `carrier_issue` \| `returns_issue` \| `warehouse_incident` \| `system_failure` \| `client_complaint` \| `other`) | Sí | Categoría oficial (briefing centralized-incident-manager). |
+| `branch` | string (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | Sí | Sede oficial (briefing centralized-incident-manager). |
 | `origin` | string (`customer` \| `branch` \| `internal`) | Sí | Origen. |
 | `incident_created_at` | string | Sí | Creación de la incidencia (ISO 8601) para calcular duración. |
 | `seconds_in_previous_status` | integer | Sí | Segundos que pasó en from_status. |
-
 ### `incident_status_change_rejected`
 
-- **Grupo:** Obligatorio (MM-7) · **Categoría:** Negocio · incidencias · **Entrega:** batch
+- **Grupo:** Oportunidad · **Categoría:** Negocio · incidencias · **Entrega:** batch
 - **Dónde se emite:** API — `PATCH /api/incidents/{id}/status` cuando responde 400 por ciclo de vida
 - **Cuándo:** Intento de transición no permitida (p. ej. open → resolved) o de cambiar una incidencia en estado final. Es el equivalente en TrackFlow al «cambio directo de stock rechazado»: una modificación que el sistema no permite fuera del flujo.
 - **Por qué batch:** Es un indicador de proceso/UX, no un incidente de seguridad; basta con el informe diario.
@@ -273,8 +375,7 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 | `current_status` | string (`open` \| `in_progress` \| `resolved` \| `discarded`) | Sí | Estado real en el momento del intento. |
 | `requested_status` | string (`open` \| `in_progress` \| `resolved` \| `discarded`) | Sí | Estado pedido. |
 | `reason` | string (`invalid_transition` \| `final_state`) | Sí | Motivo del rechazo. |
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | Sí | Sucursal. |
-
+| `branch` | string (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | Sí | Sede oficial (briefing centralized-incident-manager). |
 ### `lead_form_started`
 
 - **Grupo:** Oportunidad identificada · **Categoría:** Navegación · **Entrega:** batch
@@ -303,31 +404,29 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 | Propiedad | Tipo | Obligatoria | Descripción |
 |---|---|---|---|
 | `fields` | array de `title` \| `description` \| `category` \| `status` \| `origin` \| `branch` \| `body` | Sí | Campos con error (solo nombres). |
-| `origin` | string (`customer` \| `branch` \| `internal`) | No | Origen si era válido. |
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | No | Sucursal si era válida. |
-
+| `origin` | string | null (`customer` \| `branch` \| `internal` \| `None`) | No | Origen si era válido. |
+| `branch` | string | null (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | No | Sede oficial (briefing centralized-incident-manager). |
 ### `incident_backlog_threshold_triggered`
 
 - **Grupo:** Oportunidad identificada · **Categoría:** Negocio · incidencias · **Entrega:** stream
-- **Dónde se emite:** API — tras cada `incident_created`/`incident_status_changed`, se recalcula el nº de incidencias abiertas de la sucursal
-- **Cuándo:** El nº de incidencias `open` + `in_progress` de una sucursal cruza hacia arriba el umbral configurado (por defecto 25). Se emite al cruzar, no mientras siga por encima. Equivalente al «umbral mínimo de stock».
+- **Dónde se emite:** API — tras cada `incident_created`/`incident_status_changed`, se recalcula el nº de incidencias abiertas de la sede
+- **Cuándo:** El nº de incidencias `open` + `in_progress` de una sede cruza hacia arriba el umbral configurado (por defecto 25). Se emite al cruzar, no mientras siga por encima. Equivalente al «umbral mínimo de stock».
 - **Por qué stream:** La decisión (mover personal hoy) pierde valor si se conoce al día siguiente.
-- **Throttle/debounce:** Histéresis: no vuelve a emitirse para la misma sucursal hasta que baje del 80 % del umbral.
+- **Throttle/debounce:** Histéresis: no vuelve a emitirse para la misma sede hasta que baje del 80 % del umbral.
 - **Datos sensibles / PII:** Sin PII.
 
 **Allowlist de `properties`** (cualquier otra clave se rechaza):
 
 | Propiedad | Tipo | Obligatoria | Descripción |
 |---|---|---|---|
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | Sí | Sucursal. |
+| `branch` | string (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | Sí | Sede oficial (briefing centralized-incident-manager). |
 | `open_count` | integer | Sí | Incidencias abiertas + en curso al cruzar. |
 | `threshold` | integer | Sí | Umbral configurado. |
-
 ### `incident_list_filtered`
 
 - **Grupo:** Oportunidad identificada · **Categoría:** Navegación · **Entrega:** batch
 - **Dónde se emite:** backoffice (cliente) — cambio de filtros en `/incidents`
-- **Cuándo:** Cambio de cualquier filtro del listado (estado, origen, sucursal).
+- **Cuándo:** Cambio de cualquier filtro del listado (estado, origen, sede, categoría, impacto SLA).
 - **Por qué batch:** Analítica de uso, sin urgencia.
 - **Throttle/debounce:** Debounce de 1 s (solo se emite el último cambio de una ráfaga).
 - **Datos sensibles / PII:** Sin PII.
@@ -336,11 +435,10 @@ Cada tabla es la **allowlist** de `properties`. Los tipos, enums y límites coin
 
 | Propiedad | Tipo | Obligatoria | Descripción |
 |---|---|---|---|
-| `status` | string (`open` \| `in_progress` \| `resolved` \| `discarded`) | No | Filtro de estado. |
-| `origin` | string (`customer` \| `branch` \| `internal`) | No | Filtro de origen. |
-| `branch` | string (`los_angeles` \| `zaragoza` \| `central`) | No | Filtro de sucursal. |
+| `status` | string | null (`open` \| `in_progress` \| `resolved` \| `discarded` \| `None`) | No | Filtro de estado. |
+| `origin` | string | null (`customer` \| `branch` \| `internal` \| `None`) | No | Filtro de origen. |
+| `branch` | string | null (`central` \| `la_warehouse` \| `la_office` \| `zaragoza_warehouse` \| `zaragoza_office`) | No | Sede oficial (briefing centralized-incident-manager). |
 | `result_count` | integer | Sí | Filas devueltas. |
-
 ### `supplier_created`
 
 - **Grupo:** Oportunidad identificada · **Categoría:** Negocio · proveedores · **Entrega:** batch
@@ -620,6 +718,11 @@ El criterio es **cuánto pierde valor la decisión si se conoce tarde**, no la c
 
 | event_type | Entrega | Justificación (urgencia de la decisión) |
 |---|---|---|
+| `stock_threshold_triggered` | **stream** | Avisar al cliente y a Comercial antes del quiebre de stock pierde casi todo su valor si se conoce al día siguiente. |
+| `direct_stock_edit_rejected` | **batch** | La API ya rechazó el cambio; la decisión (formación o permisos) se toma con el recuento semanal. |
+| `inbound_order_created` | **batch** | La capacidad de almacén se planifica por día y semana. |
+| `inventory_discrepancy_detected` | **batch** | Las auditorías se priorizan por mes según la tasa de discrepancia. |
+| `outbound_order_created` | **batch** | El ritmo de despacho se analiza por día; el riesgo de quiebre ya va en stream. |
 | `api_error_occurred` | **stream** | Los 5xx afectan a todos los usuarios en ese momento; hay que verlos en tiempo real. |
 | `auth_login_failed` | **stream** | Un ataque de fuerza bruta debe detectarse en minutos para bloquearlo; en batch llegaría tarde. |
 | `frontend_error_uncaught` | **stream** | Un error nuevo tras un despliegue debe verse en minutos para decidir un rollback. |
@@ -628,14 +731,14 @@ El criterio es **cuánto pierde valor la decisión si se conoce tarde**, no la c
 | `auth_login_succeeded` | **batch** | Métrica de adopción diaria. |
 | `csv_analysis_completed` | **batch** | Uso y calidad de datos se revisan semanalmente. |
 | `csv_results_exported` | **batch** | Uso semanal. |
-| `incident_created` | **batch** | El volumen diario por sucursal se consume en el informe operativo; la reacción inmediata a picos la cubre `incident_backlog_threshold_triggered` (stream). |
+| `incident_created` | **batch** | El volumen diario por sede se consume en el informe operativo; la reacción inmediata a picos la cubre `incident_backlog_threshold_triggered` (stream). |
 | `incident_list_filtered` | **batch** | Analítica de uso, sin urgencia. |
 | `incident_status_change_rejected` | **batch** | Es un indicador de proceso/UX, no un incidente de seguridad; basta con el informe diario. |
 | `incident_status_changed` | **batch** | El tiempo medio de resolución es un indicador de tendencia diario/semanal. |
 | `incident_validation_failed` | **batch** | Indicador de calidad de UX que se revisa por día. |
 | `lead_form_started` | **batch** | La tasa de abandono es un análisis de embudo diario. |
 | `lead_form_submitted` | **batch** | Los KPI de conversión, error de validación y volumen previsto se revisan por día/semana; ninguna decisión depende de verlos en segundos. |
-| `lead_status_changed` | **batch** | El tiempo medio de onboarding es un KPI semanal; el seguimiento individual ya lo da la propia cola del backoffice. |
+| `lead_status_changed` | **batch** | El tiempo medio de alta es un indicador semanal; el seguimiento individual ya lo da la propia cola del backoffice. |
 | `page_viewed` | **batch** | Analítica de uso diaria. |
 | `session_expired` | **batch** | Ajuste de configuración, decisión semanal. |
 | `supplier_created` | **batch** | Evolución mensual de la red de proveedores. |
@@ -650,6 +753,7 @@ El criterio es **cuánto pierde valor la decisión si se conoce tarde**, no la c
 - **Stream**: la API valida y guarda el evento y, además, lo publica en un canal de alertas (webhook al canal de guardia). Hay una regla por evento:
   - `auth_login_failed`: 10 o más fallos para el mismo `email_hash` en 5 minutos, o 50 o más en total en 5 minutos.
   - `api_error_occurred` y `frontend_error_uncaught`: una tasa por encima de lo habitual o un `error_fingerprint` nuevo tras un despliegue.
+  - `stock_threshold_triggered`: cada vez que se emite, al canal de Operaciones y Comercial con almacén, cliente y SKU.
   - `incident_backlog_threshold_triggered`: cada vez que se emite.
 - **Batch**: los eventos se guardan en `telemetry_events` y se agregan cada noche (00:30 Europe/Madrid) en el informe técnico. Los KPI de negocio los calculará el pipeline de `data/pipelines/`.
 
@@ -657,8 +761,9 @@ El criterio es **cuánto pierde valor la decisión si se conoce tarde**, no la c
 
 | event_type | Estrategia |
 |---|---|
+| `stock_threshold_triggered` | Histéresis: no vuelve a emitirse para el mismo SKU y almacén hasta que el stock supere el umbral con una entrada. |
 | `lead_form_started` | 1 por sesión. |
-| `incident_backlog_threshold_triggered` | Histéresis: no vuelve a emitirse para la misma sucursal hasta que baje del 80 % del umbral. |
+| `incident_backlog_threshold_triggered` | Histéresis: no vuelve a emitirse para la misma sede hasta que baje del 80 % del umbral. |
 | `incident_list_filtered` | Debounce de 1 s (solo se emite el último cambio de una ráfaga). |
 | `page_viewed` | Se ignora una segunda vista de la misma ruta en menos de 2 s (recargas/dobles render). |
 | `ui_error_displayed` | Máx. 5 por sesión y minuto; deduplicado por `route`+`error_kind`. |
@@ -684,13 +789,14 @@ Reglas generales del cliente:
 | `mouse_moved`, mapas de calor, grabación de sesión | Su coste y su riesgo de privacidad son desproporcionados frente a lo que aportan. |
 | `api_request_started` | Repite lo que ya da `api_request_completed`. |
 | `supplier_viewed` | El directorio es pequeño (15 proveedores) y no hay ninguna decisión que tomar con ese dato. |
-| `lead_form_submitted` en el servidor | Hoy el formulario del website no llama a ninguna API. Se mide en el cliente y se marcará como dato de cliente. Cuando exista el servicio de solicitudes, `lead_status_changed` (servidor) será la fuente de verdad de MM-3. |
+| `lead_form_submitted` en el servidor | Hoy el formulario del website no llama a ninguna API. Se mide en el cliente y se marcará como dato de cliente. Cuando exista el servicio de solicitudes, `lead_status_changed` (servidor) será la fuente de verdad del tiempo de alta. |
 
 ### 8.2 Datos que no se capturarán
 
 | Dato | Motivo |
 |---|---|
-| Email, nombre, teléfono, dirección y empresa del formulario de onboarding | Son PII. `CONTEXT.md` §9 prohíbe recoger datos sensibles más allá de los campos definidos, y la telemetría no los necesita. |
+| Empresa, contacto, email, teléfono, web y comentarios del formulario de alta | Son PII o texto libre, y la telemetría no los necesita. |
+| Transportista, número de seguimiento y destinatario en los eventos de inventario | El briefing los deja fuera: pertenecen al dominio de última milla, no al inventario de almacén. |
 | `title` y `description` de las incidencias | Texto libre que puede contener datos de clientes finales. Solo se emite la longitud. |
 | Dirección IP y user-agent completo | Seguridad no los necesita (basta `email_hash`) y en la UE la IP es un dato personal. En rendimiento solo se emite `device_class`. |
 | Contenido y nombre de los CSV subidos | El CSV incluye `customer_email`. Se emiten solo recuentos. |
@@ -702,7 +808,7 @@ Reglas generales del cliente:
 - **Fuga de PII por un desarrollador.** Riesgo: alguien añade `email` a un evento. Mitigación: la allowlist estricta en la ingesta lo rechaza, hay un test de contrato en CI que valida eventos de ejemplo contra `event-schemas.json`, y en las revisiones se comprueba cada cambio de esquema.
 - **Coste de almacenamiento.** `api_request_completed` y `web_vitals_reported` son los eventos con más volumen. Mitigación: muestreo del 10 % en las respuestas rápidas y correctas, y retención de 90 días para los eventos crudos de rendimiento (los agregados diarios se guardan sin límite).
 - **Doble conteo.** Riesgo: reintentos del cliente o envíos dobles. Mitigación: `eventId` es único y la ingesta lo trata como idempotente; si llega un duplicado, responde que ya estaba guardado y no lo inserta otra vez.
-- **Sesgo de datos de cliente.** Los bloqueadores de anuncios pueden impedir los eventos de cliente. Por eso las métricas obligatorias de incidencias (MM-5 a MM-7) salen de eventos de servidor. Solo MM-1, MM-2 y MM-4 dependen del cliente, hasta que exista una API de solicitudes.
+- **Sesgo de datos de cliente.** Los bloqueadores de anuncios pueden impedir los eventos de cliente. Por eso los 5 eventos obligatorios de inventario salen de la API, después de confirmar la escritura. Solo los del formulario del website dependen del cliente, hasta que exista una API de solicitudes.
 - **Cambios de esquema.** Se versionan con `schemaVersion` (semver). Un cambio incompatible crea una versión mayor y, durante la transición, se aceptan las dos.
 - **Clave del HMAC.** Si se filtra, `email_hash` dejaría de proteger nada. Mitigación: la clave va en el gestor de secretos (`TELEMETRY_HASH_KEY` en `.env`) y se rota cada trimestre, aunque al rotarla se pierde la continuidad de los recuentos por cuenta.
 
@@ -710,7 +816,9 @@ Reglas generales del cliente:
 
 1. **API.**
    - Añadir un módulo `services/telemetry/` con `emit(event_type, properties, request)`. Esta función construye el envelope (`eventId`, `timestamp`, `requestId` sacado de `X-Request-ID`, `userId` del usuario autenticado y `source`), valida contra `event-schemas.json` y lo persiste.
-   - Llamar a `emit` en los puntos de la §3, **después** del `insert` o el `update`.
+   - Llamar a `emit` en los puntos de la §3, **después** del `insert` o el `update`. En inventario: `inbound_order_created` y `outbound_order_created` en los dos `POST` de órdenes, y `stock_threshold_triggered` en el mismo servicio de salida, comparando `stock_after` con `min_stock_threshold`.
+   - Añadir `min_stock_threshold` al SKU, una ruta de edición directa que siempre responda 409 y emita `direct_stock_edit_rejected`, y el registro de conteos que emite `inventory_discrepancy_detected`.
+   - `client_id` = slug de `client_name` (minúsculas, sin acentos, espacios → `-`), calculado en un único helper.
    - El middleware de `api_request_completed` y el manejador de `api_error_occurred` van en `services/api/main.py` y `services/api/errors.py`.
 2. **Frontends.**
    - Un `lib/telemetry.ts` con `track(event_type, properties)`, cola en memoria, `sendBeacon` y `sessionId` en `sessionStorage`.
