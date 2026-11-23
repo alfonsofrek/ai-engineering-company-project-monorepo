@@ -22,6 +22,8 @@
 - Milestone 5: inventario TrackFlow con doble base de datos (TinyDB para auth, Supabase/PostgreSQL con SQLModel para `SKU`, `StockEntry`, `StockExit`), router `/inventory`, stock calculado por almacén, rechazo `400` sin stock y seed idempotente del briefing; 32 pruebas pasan en SQLite y PostgreSQL.
 - Auditoría de serialización (`docs/serialization-audit.md`): los 32 endpoints con `response_model` explícito, schemas de salida independientes de los de entrada, listas más ligeras que el detalle, auth sin email ni credenciales en respuestas sin autenticar, movimientos con SKU plano; contratos fijados en `tests/test_serialization.py` (104 pruebas pasan).
 
+- Contexto de empresa alineado con los briefings oficiales de 4Geeks: TrackFlow opera en Estados Unidos y España (antes figuraba México y España). Briefings copiados en `docs/briefings/`, `CONTEXT.md`, memory bank, regla de UI y skill de revisión del formulario actualizados.
+
 ## Siguiente
 - Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.
 - Paginación en servidor para `/incidents` y migrar proveedores a `useApiQuery`.
