@@ -1,4 +1,4 @@
-"""Incident domain model. Field names and allowed values follow company-BRIEFING.md."""
+"""Incident domain model. Field names and allowed values follow docs/briefings/centralized-incident-manager.es.md."""
 
 from __future__ import annotations
 
@@ -9,11 +9,21 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class IncidentCategory(StrEnum):
+    """The 9 categories of the official TrackFlow briefing, in its order."""
+
     LOST_PARCEL = "lost_parcel"
-    DELAYED_DELIVERY = "delayed_delivery"
-    WRONG_ADDRESS = "wrong_address"
-    RETURN_REQUEST = "return_request"
-    DAMAGE = "damage"
+    DELIVERY_FAILURE = "delivery_failure"
+    INVENTORY_DISCREPANCY = "inventory_discrepancy"
+    CARRIER_ISSUE = "carrier_issue"
+    RETURNS_ISSUE = "returns_issue"
+    WAREHOUSE_INCIDENT = "warehouse_incident"
+    SYSTEM_FAILURE = "system_failure"
+    CLIENT_COMPLAINT = "client_complaint"
+    OTHER = "other"
+
+
+# Categories with direct impact on the client SLA (Thomas and Carlos filter by them).
+SLA_CATEGORIES = frozenset({IncidentCategory.LOST_PARCEL, IncidentCategory.CARRIER_ISSUE})
 
 
 class IncidentStatus(StrEnum):
@@ -30,9 +40,13 @@ class IncidentOrigin(StrEnum):
 
 
 class IncidentBranch(StrEnum):
-    LOS_ANGELES = "los_angeles"
-    ZARAGOZA = "zaragoza"
+    """The 5 TrackFlow sites of the official briefing. ``central`` = no specific site."""
+
     CENTRAL = "central"
+    LA_WAREHOUSE = "la_warehouse"
+    LA_OFFICE = "la_office"
+    ZARAGOZA_WAREHOUSE = "zaragoza_warehouse"
+    ZARAGOZA_OFFICE = "zaragoza_office"
 
 
 # Lifecycle from the BRIEFING: resolved and discarded are final states.

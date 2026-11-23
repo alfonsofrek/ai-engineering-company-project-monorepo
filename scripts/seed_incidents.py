@@ -2,7 +2,7 @@
 """Load the historical incident CSV into the incident manager database.
 
 Every record is stored with origin "customer". The CSV -> model transformations
-follow company-BRIEFING.md §5, and rows are validated with the same rules as the
+follow docs/briefings/centralized-incident-manager.es.md, and rows are validated with the same rules as the
 CSV analyzer (packages/shared/python/incident_validation.py). The script is
 idempotent: rows whose incident_id is already stored as source_ref are skipped.
 
@@ -29,14 +29,15 @@ from tinydb import Query  # noqa: E402
 DEFAULT_CSV = ROOT / "scripts" / "incidents-trackflow.csv"
 
 STATUS_MAP = {"OPEN": "open", "CLOSED": "resolved", "DISCARDED": "discarded"}
+# Mappings copied from docs/briefings/centralized-incident-manager.es.md ("Datos históricos").
 CATEGORY_MAP = {
     "LOST_PARCEL": "lost_parcel",
-    "DELAYED_DELIVERY": "delayed_delivery",
-    "WRONG_ADDRESS": "wrong_address",
-    "RETURN_REQUEST": "return_request",
-    "DAMAGE": "damage",
+    "DELAYED_DELIVERY": "carrier_issue",
+    "WRONG_ADDRESS": "delivery_failure",
+    "RETURN_REQUEST": "returns_issue",
+    "DAMAGE": "carrier_issue",
 }
-BRANCH_MAP = {"US": "los_angeles", "ES": "zaragoza"}
+BRANCH_MAP = {"US": "la_office", "ES": "zaragoza_office"}
 TITLE_MAX_LENGTH = 120
 
 

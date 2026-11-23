@@ -1,9 +1,18 @@
-/** Incident domain values — must match company-BRIEFING.md and services/api/incident_models.py. */
+/** Incident domain values — must match docs/briefings/centralized-incident-manager.es.md and services/api/incident_models.py. */
 
-export type IncidentCategory = "lost_parcel" | "delayed_delivery" | "wrong_address" | "return_request" | "damage";
+export type IncidentCategory =
+  | "lost_parcel"
+  | "delivery_failure"
+  | "inventory_discrepancy"
+  | "carrier_issue"
+  | "returns_issue"
+  | "warehouse_incident"
+  | "system_failure"
+  | "client_complaint"
+  | "other";
 export type IncidentStatus = "open" | "in_progress" | "resolved" | "discarded";
 export type IncidentOrigin = "customer" | "branch" | "internal";
-export type IncidentBranch = "los_angeles" | "zaragoza" | "central";
+export type IncidentBranch = "central" | "la_warehouse" | "la_office" | "zaragoza_warehouse" | "zaragoza_office";
 
 export type Incident = {
   id: number;
@@ -28,11 +37,15 @@ export type IncidentSummary = {
 };
 
 export const CATEGORY_LABELS: Record<IncidentCategory, string> = {
-  lost_parcel: "Paquete perdido",
-  delayed_delivery: "Entrega retrasada",
-  wrong_address: "Dirección incorrecta",
-  return_request: "Solicitud de devolución",
-  damage: "Paquete dañado",
+  lost_parcel: "Paquete extraviado",
+  delivery_failure: "Fallo de entrega",
+  inventory_discrepancy: "Discrepancia de inventario",
+  carrier_issue: "Problema de carrier",
+  returns_issue: "Problema de devolución",
+  warehouse_incident: "Incidente en almacén",
+  system_failure: "Fallo de sistema",
+  client_complaint: "Queja de cliente",
+  other: "Otra",
 };
 
 export const STATUS_LABELS: Record<IncidentStatus, string> = {
@@ -44,17 +57,19 @@ export const STATUS_LABELS: Record<IncidentStatus, string> = {
 
 export const ORIGIN_LABELS: Record<IncidentOrigin, string> = {
   customer: "Cliente",
-  branch: "Sucursal",
+  branch: "Almacén u oficina",
   internal: "Interno",
 };
 
 export const BRANCH_LABELS: Record<IncidentBranch, string> = {
-  los_angeles: "Hub Los Ángeles",
-  zaragoza: "Almacén Zaragoza",
-  central: "Central (sede)",
+  central: "Central",
+  la_warehouse: "Los Ángeles — Almacén",
+  la_office: "Los Ángeles — Oficina",
+  zaragoza_warehouse: "Zaragoza — Almacén",
+  zaragoza_office: "Zaragoza — Oficina",
 };
 
-/** Lifecycle from the BRIEFING: resolved and discarded are final. */
+/** Lifecycle from the briefing: resolved and discarded are final. */
 export const NEXT_STATUSES: Record<IncidentStatus, IncidentStatus[]> = {
   open: ["in_progress", "discarded"],
   in_progress: ["resolved", "discarded"],

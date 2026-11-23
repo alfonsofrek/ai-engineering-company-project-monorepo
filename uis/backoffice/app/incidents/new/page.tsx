@@ -37,7 +37,7 @@ function validate(form: FormState): Partial<Record<FieldName, string>> {
   if (form.description.trim().length < 5) errors.description = "Describe la incidencia con al menos 5 caracteres.";
   if (!form.category) errors.category = "Selecciona una categoría.";
   if (!form.origin) errors.origin = "Indica el origen del reporte.";
-  if (!form.branch) errors.branch = "Selecciona la sucursal (usa «Central» si no aplica a ninguna).";
+  if (!form.branch) errors.branch = "Selecciona la sede (usa «Central» si no aplica a ninguna instalación).";
   return errors;
 }
 
@@ -132,12 +132,12 @@ export default function NewIncidentPage() {
           {fieldError("origin")}
         </label>
 
-        <label className={form.origin === "branch" ? "incident-branch-highlight" : undefined}>Sucursal *
+        <label className={form.origin === "branch" ? "incident-branch-highlight" : undefined}>Sede *
           <select value={form.branch} onChange={(event) => update("branch", event.target.value as FormState["branch"])} aria-invalid={Boolean(fieldErrors.branch)}>
             <option value="">Selecciona…</option>
             {Object.entries(BRANCH_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          {form.origin === "branch" && <small className="incident-hint">Estás reportando desde una sucursal: indica cuál.</small>}
+          {form.origin === "branch" && <small className="incident-hint">Estás reportando desde un almacén u oficina: indica cuál.</small>}
           {fieldError("branch")}
         </label>
 
