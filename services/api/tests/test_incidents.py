@@ -15,9 +15,9 @@ def incident(**overrides):
     payload = {
         "title": "Paquete no entregado",
         "description": "El cliente indica que el paquete no ha llegado tras 5 días.",
-        "category": "delayed_delivery",
+        "category": "carrier_issue",
         "origin": "branch",
-        "branch": "zaragoza",
+        "branch": "zaragoza_warehouse",
     }
     payload.update(overrides)
     return payload
@@ -44,7 +44,7 @@ def test_create_get_and_list_with_filters(client_and_headers):
     assert body["status"] == "open"
     assert body["created_at"] and body["updated_at"]
 
-    client.post("/api/incidents", json=incident(origin="internal", branch="central", category="damage"), headers=headers)
+    client.post("/api/incidents", json=incident(origin="internal", branch="central", category="warehouse_incident"), headers=headers)
 
     assert client.get(f"/api/incidents/{body['id']}", headers=headers).json()["title"] == "Paquete no entregado"
     assert len(client.get("/api/incidents", headers=headers).json()) == 2
@@ -101,10 +101,14 @@ def test_summary_on_empty_and_populated_database(client_and_headers):
     empty = client.get("/api/incidents/summary", headers=headers)
     assert empty.status_code == 200
     assert empty.json()["total"] == 0
-    assert empty.json()["by_branch"] == {"los_angeles": 0, "zaragoza": 0, "central": 0}
+    assert empty.json()["by_branch"] == {
+        "central": 0, "la_warehouse": 0, "la_office": 0, "zaragoza_warehouse": 0, "zaragoza_office": 0,
+    }
+    # All 9 official categories are always present, with 0 when empty.
+    assert len(empty.json()["by_category"]) == 9
 
     client.post("/api/incidents", json=incident(), headers=headers)
-    client.post("/api/incidents", json=incident(origin="customer", branch="los_angeles"), headers=headers)
+    client.post("/api/incidents", json=incident(origin="customer", branch="la_office"), headers=headers)
     summary = client.get("/api/incidents/summary", headers=headers).json()
     assert summary["total"] == 2
     assert summary["by_status"]["open"] == 2
@@ -121,7 +125,54 @@ def test_seed_is_idempotent_and_assigns_customer_origin(tmp_path):
     inserted, skipped, rejected = seed_incidents.seed(csv_path, table)
     assert (inserted, skipped, len(rejected)) == (95, 0, 5)
     assert {row["origin"] for row in table.all()} == {"customer"}
-    assert {row["branch"] for row in table.all()} <= {"los_angeles", "zaragoza"}
+    assert {row["branch"] for row in table.all()} <= {"la_office", "zaragoza_office"}
 
     assert seed_incidents.seed(csv_path, table)[:2] == (0, 95)
     assert len(table) == 95
+
+
+def test_seed_matches_the_official_briefing_counts(tmp_path):
+    """docs/briefings/centralized-incident-manager.es.md, «Valores esperados tras el seed»."""
+    from collections import Counter
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import seed_incidents
+
+    table = TinyDB(tmp_path / "seed.json").table("incidents")
+    seed_incidents.seed(ROOT / "scripts" / "incidents-trackflow.csv", table)
+    assert Counter(row["status"] for row in table.all()) == {"open": 29, "resolved": 52, "discarded": 14}
+    assert Counter(row["category"] for row in table.all()) == {
+        "lost_parcel": 14, "carrier_issue": 45, "delivery_failure": 19, "returns_issue": 17,
+    }
+
+
+def test_sla_impact_filter_keeps_lost_parcel_and_carrier_issue(client_and_headers):
+    client, headers = client_and_headers
+    for category in ("lost_parcel", "carrier_issue", "returns_issue", "system_failure"):
+        client.post("/api/incidents", json=incident(category=category), headers=headers)
+    listed = client.get("/api/incidents?sla_impact=true", headers=headers).json()
+    assert sorted(item["category"] for item in listed) == ["carrier_issue", "lost_parcel"]
+
+
+def test_old_category_and_branch_values_are_rejected(client_and_headers):
+    client, headers = client_and_headers
+    assert client.post("/api/incidents", json=incident(category="delayed_delivery"), headers=headers).status_code == 400
+    assert client.post("/api/incidents", json=incident(branch="zaragoza"), headers=headers).status_code == 400
+
+
+def test_migration_rewrites_old_values_and_is_idempotent(tmp_path):
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import migrate_incident_values
+
+    table = TinyDB(tmp_path / "old.json").table("incidents")
+    table.insert({"category": "delayed_delivery", "branch": "los_angeles", "origin": "customer"})
+    table.insert({"category": "wrong_address", "branch": "zaragoza", "origin": "branch"})
+    table.insert({"category": "lost_parcel", "branch": "central", "origin": "internal"})
+
+    assert migrate_incident_values.migrate(table) == 2
+    assert [(row["category"], row["branch"]) for row in table.all()] == [
+        ("carrier_issue", "la_office"),
+        ("delivery_failure", "zaragoza_warehouse"),
+        ("lost_parcel", "central"),
+    ]
+    assert migrate_incident_values.migrate(table) == 0

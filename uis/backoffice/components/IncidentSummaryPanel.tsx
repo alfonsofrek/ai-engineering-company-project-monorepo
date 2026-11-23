@@ -62,7 +62,7 @@ export function IncidentSummaryPanel({ refreshKey = 0 }: { refreshKey?: number }
       <Group title="Por estado" counts={summary?.by_status} labels={STATUS_LABELS} total={total} />
       <Group title="Por categoría" counts={summary?.by_category} labels={CATEGORY_LABELS} total={total} />
       <Group title="Por origen" counts={summary?.by_origin} labels={ORIGIN_LABELS} total={total} />
-      <Group title="Por sucursal" counts={summary?.by_branch} labels={BRANCH_LABELS} total={total} />
+      <Group title="Por sede" counts={summary?.by_branch} labels={BRANCH_LABELS} total={total} />
     </section>
   );
 }

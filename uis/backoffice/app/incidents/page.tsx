@@ -20,8 +20,8 @@ import { ErrorState } from "../../components/ErrorState";
 import { IncidentSummaryPanel } from "../../components/IncidentSummaryPanel";
 import "./incidents.css";
 
-type Filters = { status: string; origin: string; branch: string };
-const NO_FILTERS: Filters = { status: "", origin: "", branch: "" };
+type Filters = { status: string; origin: string; branch: string; category: string; sla_impact: string };
+const NO_FILTERS: Filters = { status: "", origin: "", branch: "", category: "", sla_impact: "" };
 
 export default function IncidentsPage() {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -106,11 +106,25 @@ export default function IncidentsPage() {
             {Object.entries(ORIGIN_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <label>Sucursal
+        <label>Sede
           <select value={filters.branch} onChange={(event) => changeFilter("branch", event.target.value)}>
             <option value="">Todas</option>
             {Object.entries(BRANCH_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
+        </label>
+        <label>Categoría
+          <select value={filters.category} onChange={(event) => changeFilter("category", event.target.value)}>
+            <option value="">Todas</option>
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label className="incident-checkbox">
+          <input
+            type="checkbox"
+            checked={filters.sla_impact === "true"}
+            onChange={(event) => changeFilter("sla_impact", event.target.checked ? "true" : "")}
+          />
+          Solo impacto en SLA (extraviados y carrier)
         </label>
         {hasFilters && <button type="button" className="incident-clear" onClick={clearFilters}>Quitar filtros</button>}
       </section>

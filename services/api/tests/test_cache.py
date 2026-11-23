@@ -16,9 +16,9 @@ SUPPLIER = {
 INCIDENT = {
     "title": "Paquete no entregado",
     "description": "El cliente indica que el paquete no ha llegado.",
-    "category": "delayed_delivery",
+    "category": "carrier_issue",
     "origin": "branch",
-    "branch": "zaragoza",
+    "branch": "zaragoza_warehouse",
 }
 
 

@@ -1,4 +1,4 @@
-"""Centralized Incident Manager API (see company-BRIEFING.md)."""
+"""Centralized Incident Manager API (see docs/briefings/centralized-incident-manager.es.md)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from services.api.cache import INCIDENT_SUMMARY, INCIDENT_SUMMARY_TTL, cache
 from services.api.database import incidents_table
 from services.api.incident_models import (
+    SLA_CATEGORIES,
     STATUS_LABELS,
     IncidentBranch,
     IncidentCategory,
@@ -35,7 +36,7 @@ FIELD_LABELS = {
     "category": "categoría",
     "status": "estado",
     "origin": "origen",
-    "branch": "sucursal",
+    "branch": "sede",
 }
 
 
@@ -101,7 +102,9 @@ def list_incidents(
     origin: IncidentOrigin | None = None,
     branch: IncidentBranch | None = None,
     category: IncidentCategory | None = None,
+    sla_impact: bool = False,
 ) -> list[IncidentListItem]:
+    """``sla_impact=true`` keeps only lost_parcel and carrier_issue (direct impact on the client SLA)."""
     wanted_status = status
     incidents = incidents_table.all()
     filters = {
@@ -113,6 +116,9 @@ def list_incidents(
     for key, value in filters.items():
         if value is not None:
             incidents = [incident for incident in incidents if incident.get(key) == value]
+    if sla_impact:
+        sla_values = {category.value for category in SLA_CATEGORIES}
+        incidents = [incident for incident in incidents if incident.get("category") in sla_values]
     incidents.sort(key=lambda incident: incident.get("created_at", ""), reverse=True)
     return [to_list_item(incident, incident.doc_id) for incident in incidents]
 
