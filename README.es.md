@@ -9,6 +9,16 @@ _Las instrucciones están [disponibles en inglés](./README.md)._
 
 ---
 
+## Hito 1 — sitio web público
+
+Ejecución local (compatible con Codespaces; reenvía el puerto 3000 como **Public** para PageSpeed):
+
+```bash
+npx serve . -l 3000
+```
+
+Abre `/index.html` (landing) y `/application.html` (formulario de alta de marcas, validado por `validation.js`).
+
 ## Propósito
 
 Este repositorio es la **plantilla de inicio** para los proyectos transversales. Trabajarás con escenarios de empresas reales (Brasaland, TrackFlow, Nexova) construyendo entregables que se corresponden con los hitos del curso (Web, Programación, Backend, Telemetría, RAG, Agentes, Workflows, Tiempo real).

@@ -28,6 +28,8 @@
 
 - Telemetría y pipeline alineados con los briefings oficiales: el plan incluye los 5 eventos obligatorios de inventario (30 eventos en total, Markdown y JSON coherentes) y `PIPELINE_DESIGN.md` diseña `reporting.weekly_warehouse_client_performance` con los 4 KPIs del briefing.
 
+- Hito 1 alineado con el briefing: `index.html`, `application.html`, `validation.js` y `uis/website` usan el contenido, los 12 campos, las validaciones, los mensajes y el Schema.org oficiales; la home del backoffice usa el vocabulario del formulario.
+
 ## Siguiente
 - Desplegar el stack Docker en el VPS y adjuntar evidencias al PR.
 - Paginación en servidor para `/incidents` y migrar proveedores a `useApiQuery`.

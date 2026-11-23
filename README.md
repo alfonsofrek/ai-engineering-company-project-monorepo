@@ -9,6 +9,16 @@ _Base template for transversal projects in the AI Engineering Career Program —
 
 ---
 
+## Milestone 1 — public website
+
+Run locally (works in Codespaces; forward port 3000 as **Public** for PageSpeed):
+
+```bash
+npx serve . -l 3000
+```
+
+Then open `/index.html` (landing page) and `/application.html` (brand signup form, validated by `validation.js`).
+
 ## Purpose
 
 This repository is the **starter template** for transversal projects. You will work on real company scenarios (Brasaland, TrackFlow, Nexova), building deliverables that map to course milestones (Web, Programming, Backend, Telemetry, RAG, Agents, Workflows, Real-time).
