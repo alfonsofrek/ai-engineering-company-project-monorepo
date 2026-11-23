@@ -146,7 +146,7 @@ INCIDENT = {
     "description": "El cliente no ha recibido el paquete.",
     "category": "lost_parcel",
     "origin": "customer",
-    "branch": "zaragoza",
+    "branch": "zaragoza_office",
 }
 INCIDENT_LIST_FIELDS = {"id", "title", "description", "category", "status", "origin", "branch", "source_ref", "created_at"}
 

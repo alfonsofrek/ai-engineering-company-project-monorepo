@@ -25,16 +25,25 @@ if not os.getenv("SUPPLIERS_DB_PATH"):
 
 from tinydb import TinyDB  # noqa: E402
 
-CATEGORIES = [("delayed_delivery", 38), ("wrong_address", 19), ("return_request", 17), ("lost_parcel", 14), ("damage", 12)]
+# Official categories (docs/briefings/centralized-incident-manager.es.md), weighted like the seed.
+CATEGORIES = [("carrier_issue", 45), ("delivery_failure", 19), ("returns_issue", 17), ("lost_parcel", 14),
+              ("inventory_discrepancy", 2), ("warehouse_incident", 1), ("system_failure", 1), ("client_complaint", 1)]
 STATUSES = [("resolved", 52), ("open", 29), ("discarded", 14), ("in_progress", 5)]
 ORIGINS = [("customer", 70), ("branch", 22), ("internal", 8)]
-BRANCHES = {"customer": [("los_angeles", 52), ("zaragoza", 48)], "branch": [("los_angeles", 50), ("zaragoza", 50)], "internal": [("central", 100)]}
+BRANCHES = {
+    "customer": [("la_office", 52), ("zaragoza_office", 48)],
+    "branch": [("la_warehouse", 50), ("zaragoza_warehouse", 50)],
+    "internal": [("central", 100)],
+}
 PROBLEMS = {
-    "delayed_delivery": ["Entrega retrasada {d} días", "El paquete sigue en tránsito tras {d} días", "Ruta reprogramada sin aviso"],
-    "wrong_address": ["Dirección de entrega incorrecta", "Código postal no coincide con la calle", "Cliente se ha mudado"],
-    "return_request": ["Cliente solicita devolución", "Devolución por talla incorrecta", "Producto no deseado"],
-    "lost_parcel": ["Paquete no localizado en el hub", "Sin escaneo desde la recogida", "Paquete perdido en ruta"],
-    "damage": ["Caja aplastada en la entrega", "Producto roto al abrir", "Embalaje mojado"],
+    "carrier_issue": ["Entrega retrasada {d} días por el carrier", "Caja aplastada en la entrega", "SLA incumplido por el carrier"],
+    "delivery_failure": ["Dirección de entrega incorrecta", "Código postal no coincide con la calle", "Cliente ausente sin gestionar"],
+    "returns_issue": ["Devolución sin etiqueta de recogida", "Devolución por talla incorrecta sin aprobar", "Producto devuelto sin registrar"],
+    "lost_parcel": ["Paquete no localizado en el almacén", "Sin escaneo desde la recogida", "Paquete extraviado en ruta"],
+    "inventory_discrepancy": ["Stock del sistema no cuadra con el conteo físico"],
+    "warehouse_incident": ["Estantería dañada en zona de picking"],
+    "system_failure": ["El WMS no sincroniza pedidos"],
+    "client_complaint": ["Queja de la marca por retrasos acumulados"],
 }
 SUPPLIER_CATEGORIES = ["carrier_last_mile", "carrier_international", "warehouse_supplies", "packaging_materials",
                        "reverse_logistics", "fleet_maintenance", "it_and_wms_software", "cleaning_and_facilities"]

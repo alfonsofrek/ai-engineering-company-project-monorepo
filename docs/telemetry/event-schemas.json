@@ -2,10 +2,70 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://trackflow.example/schemas/telemetry/event.schema.json",
   "title": "TrackFlow telemetry event",
-  "description": "Envelope común + payload por event_type. Ver docs/telemetry/telemetry-plan.md.",
+  "description": "Envelope común + payload por event_type. Ver docs/telemetry/telemetry-plan.md. Eventos obligatorios: docs/briefings/06-telemetry.es.md §3.",
   "allOf": [
     {
       "$ref": "#/definitions/envelope"
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "inbound_order_created"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/inbound_order_created"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "outbound_order_created"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/outbound_order_created"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "stock_threshold_triggered"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/stock_threshold_triggered"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "direct_stock_edit_rejected"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/direct_stock_edit_rejected"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "inventory_discrepancy_detected"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/definitions/inventory_discrepancy_detected"
+      }
     },
     {
       "if": {
@@ -352,6 +412,11 @@
         "event_type": {
           "type": "string",
           "enum": [
+            "inbound_order_created",
+            "outbound_order_created",
+            "stock_threshold_triggered",
+            "direct_stock_edit_rejected",
+            "inventory_discrepancy_detected",
             "lead_form_submitted",
             "lead_status_changed",
             "incident_created",
@@ -424,6 +489,334 @@
         }
       }
     },
+    "inbound_order_created": {
+      "description": "inbound_order_created — Un almacén registra la recepción de mercancía de un cliente (`POST /inventory/orders/inbound`, 201).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "order_id",
+            "warehouse",
+            "client_id",
+            "product_id",
+            "product_category",
+            "quantity",
+            "stock_after"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "description": "ID de la entrada de stock."
+            },
+            "warehouse": {
+              "type": "string",
+              "description": "Almacén del movimiento (briefing 06-telemetry §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza"
+              ]
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`, como `fashion-co` en el briefing del pipeline). Nunca datos del consumidor final.",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "product_id": {
+              "type": "string",
+              "description": "SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`).",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "product_category": {
+              "type": "string",
+              "description": "Categoría del SKU.",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics"
+              ]
+            },
+            "quantity": {
+              "type": "integer",
+              "description": "Unidades recibidas.",
+              "minimum": 1
+            },
+            "stock_after": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Stock del SKU en ese almacén tras la entrada."
+            }
+          }
+        }
+      }
+    },
+    "outbound_order_created": {
+      "description": "outbound_order_created — Un almacén completa el picking y despacho de un pedido (`POST /inventory/orders/outbound`, 201).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "order_id",
+            "warehouse",
+            "client_id",
+            "product_id",
+            "product_category",
+            "quantity",
+            "exit_type",
+            "stock_after"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "description": "ID de la salida de stock."
+            },
+            "warehouse": {
+              "type": "string",
+              "description": "Almacén del movimiento (briefing 06-telemetry §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza"
+              ]
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`, como `fashion-co` en el briefing del pipeline). Nunca datos del consumidor final.",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "product_id": {
+              "type": "string",
+              "description": "SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`).",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "product_category": {
+              "type": "string",
+              "description": "Categoría del SKU.",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics"
+              ]
+            },
+            "quantity": {
+              "type": "integer",
+              "description": "Unidades despachadas.",
+              "minimum": 1
+            },
+            "exit_type": {
+              "type": "string",
+              "enum": [
+                "dispatch",
+                "loss"
+              ],
+              "description": "Tipo de salida del inventario (Milestone 5)."
+            },
+            "stock_after": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Stock del SKU en ese almacén tras la salida."
+            }
+          }
+        }
+      }
+    },
+    "stock_threshold_triggered": {
+      "description": "stock_threshold_triggered — El stock de un SKU cae por debajo del mínimo configurado para ese cliente (se evalúa en servidor tras cada salida).",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warehouse",
+            "client_id",
+            "product_id",
+            "product_category",
+            "quantity",
+            "min_threshold"
+          ],
+          "properties": {
+            "warehouse": {
+              "type": "string",
+              "description": "Almacén del movimiento (briefing 06-telemetry §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza"
+              ]
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`, como `fashion-co` en el briefing del pipeline). Nunca datos del consumidor final.",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "product_id": {
+              "type": "string",
+              "description": "SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`).",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "product_category": {
+              "type": "string",
+              "description": "Categoría del SKU.",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics"
+              ]
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Stock actual del SKU en ese almacén (por debajo del umbral)."
+            },
+            "min_threshold": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Umbral mínimo configurado para ese SKU y cliente."
+            }
+          }
+        }
+      }
+    },
+    "direct_stock_edit_rejected": {
+      "description": "direct_stock_edit_rejected — Un usuario intenta modificar el stock fuera de una orden (p. ej. `PATCH`/`PUT` sobre `current_stock`) y la API lo rechaza.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warehouse",
+            "client_id",
+            "product_id",
+            "product_category",
+            "quantity",
+            "attempted_route",
+            "actor_role"
+          ],
+          "properties": {
+            "warehouse": {
+              "type": "string",
+              "description": "Almacén del movimiento (briefing 06-telemetry §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza"
+              ]
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`, como `fashion-co` en el briefing del pipeline). Nunca datos del consumidor final.",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "product_id": {
+              "type": "string",
+              "description": "SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`).",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "product_category": {
+              "type": "string",
+              "description": "Categoría del SKU.",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics"
+              ]
+            },
+            "quantity": {
+              "type": "integer",
+              "description": "Variación de stock que se intentó aplicar (puede ser negativa)."
+            },
+            "attempted_route": {
+              "type": "string",
+              "description": "Plantilla de la ruta llamada, sin IDs reales (ej. `/inventory/products/{id}`).",
+              "maxLength": 120
+            },
+            "actor_role": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "manager",
+                "user"
+              ],
+              "description": "Rol de quien lo intentó (el usuario va en `userId`)."
+            }
+          }
+        }
+      }
+    },
+    "inventory_discrepancy_detected": {
+      "description": "inventory_discrepancy_detected — Un conteo físico o una auditoría detecta diferencia entre el stock del sistema y el real.",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warehouse",
+            "client_id",
+            "product_id",
+            "product_category",
+            "quantity",
+            "system_stock",
+            "counted_stock",
+            "detection_source"
+          ],
+          "properties": {
+            "warehouse": {
+              "type": "string",
+              "description": "Almacén del movimiento (briefing 06-telemetry §3).",
+              "enum": [
+                "los_angeles",
+                "zaragoza"
+              ]
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Marca dueña del SKU: slug estable de `client_name` del inventario (ej. `purestep-footwear`, como `fashion-co` en el briefing del pipeline). Nunca datos del consumidor final.",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "product_id": {
+              "type": "string",
+              "description": "SKU del producto (`sku` del inventario, ej. `CLT-SNK-W-42`).",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "product_category": {
+              "type": "string",
+              "description": "Categoría del SKU.",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics"
+              ]
+            },
+            "quantity": {
+              "type": "integer",
+              "description": "Unidades de diferencia, en valor absoluto.",
+              "minimum": 1
+            },
+            "system_stock": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Stock según el sistema."
+            },
+            "counted_stock": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Stock contado físicamente."
+            },
+            "detection_source": {
+              "type": "string",
+              "enum": [
+                "cycle_count",
+                "audit"
+              ],
+              "description": "Conteo cíclico o auditoría."
+            }
+          }
+        }
+      }
+    },
     "lead_form_submitted": {
       "description": "lead_form_submitted — Cada intento de envío del formulario de onboarding, sea válido o no (después de la validación del navegador y de las reglas de CONTEXT.md §5).",
       "properties": {
@@ -438,60 +831,88 @@
           "properties": {
             "is_valid": {
               "type": "boolean",
-              "description": "true si el envío cumple todas las reglas de CONTEXT.md §5."
+              "description": "true si el envío cumple las 8 validaciones del briefing 01."
             },
             "invalid_fields": {
               "type": "array",
-              "description": "Campos que fallaron (vacío si is_valid=true). Solo nombres de campo, nunca valores.",
               "items": {
                 "type": "string",
                 "enum": [
-                  "fullName",
                   "companyName",
+                  "contactName",
                   "email",
-                  "country",
                   "phone",
-                  "monthlyVolume"
+                  "website",
+                  "country",
+                  "productType",
+                  "monthlyVolume",
+                  "services",
+                  "current3pl",
+                  "comments",
+                  "privacy"
                 ]
-              }
+              },
+              "uniqueItems": true,
+              "description": "Campos que fallaron; solo nombres, nunca valores."
             },
             "country": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "description": "País declarado (si es uno de los válidos).",
+              "type": "string",
               "enum": [
-                "Mexico",
-                "Espana",
-                null
-              ]
+                "united_states",
+                "spain",
+                "both",
+                "other"
+              ],
+              "description": "País de operación principal declarado."
             },
             "monthly_volume": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "description": "Envíos mensuales declarados (entero > 0). Dato de negocio, no personal.",
-              "minimum": 1
-            },
-            "segment": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "description": "Segmento derivado de monthly_volume (CONTEXT.md §6).",
+              "type": "string",
               "enum": [
-                "small",
-                "mid_market",
-                "enterprise",
-                null
-              ]
+                "0-100",
+                "101-500",
+                "501-2000",
+                "2000+",
+                "unsure"
+              ],
+              "description": "Rango de envíos mensuales declarado."
+            },
+            "product_type": {
+              "type": "string",
+              "enum": [
+                "fashion",
+                "electronics",
+                "cosmetics",
+                "food",
+                "other"
+              ],
+              "description": "Tipo de producto declarado."
+            },
+            "services": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "warehousing",
+                  "last_mile",
+                  "reverse_logistics"
+                ]
+              },
+              "uniqueItems": true,
+              "description": "Servicios de interés marcados."
+            },
+            "current_3pl": {
+              "type": "string",
+              "enum": [
+                "yes",
+                "no",
+                "evaluating"
+              ],
+              "description": "¿Trabaja ya con otro 3PL?"
             },
             "attempt_number": {
               "type": "integer",
-              "description": "Nº de intento de envío dentro de la sesión (1 = primero).",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Nº de intento de envío dentro de la sesión."
             }
           }
         }
@@ -508,9 +929,9 @@
             "from_status",
             "to_status",
             "country",
-            "segment",
             "lead_created_at",
-            "actor_role"
+            "actor_role",
+            "monthly_volume"
           ],
           "properties": {
             "lead_id": {
@@ -541,20 +962,13 @@
             },
             "country": {
               "type": "string",
-              "description": "País de la cuenta.",
               "enum": [
-                "Mexico",
-                "Espana"
-              ]
-            },
-            "segment": {
-              "type": "string",
-              "description": "Segmento por volumen.",
-              "enum": [
-                "small",
-                "mid_market",
-                "enterprise"
-              ]
+                "united_states",
+                "spain",
+                "both",
+                "other"
+              ],
+              "description": "País de operación principal declarado."
             },
             "lead_created_at": {
               "type": "string",
@@ -569,6 +983,17 @@
                 "manager",
                 "user"
               ]
+            },
+            "monthly_volume": {
+              "type": "string",
+              "enum": [
+                "0-100",
+                "101-500",
+                "501-2000",
+                "2000+",
+                "unsure"
+              ],
+              "description": "Rango de envíos mensuales declarado."
             }
           }
         }
@@ -595,13 +1020,17 @@
             },
             "category": {
               "type": "string",
-              "description": "Categoría (company-BRIEFING.md §2).",
+              "description": "Categoría oficial (briefing centralized-incident-manager).",
               "enum": [
                 "lost_parcel",
-                "delayed_delivery",
-                "wrong_address",
-                "return_request",
-                "damage"
+                "delivery_failure",
+                "inventory_discrepancy",
+                "carrier_issue",
+                "returns_issue",
+                "warehouse_incident",
+                "system_failure",
+                "client_complaint",
+                "other"
               ]
             },
             "origin": {
@@ -615,11 +1044,13 @@
             },
             "branch": {
               "type": "string",
-              "description": "Sucursal (company-BRIEFING.md §3).",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
-                "central"
+                "central",
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             },
             "initial_status": {
@@ -682,22 +1113,28 @@
             },
             "category": {
               "type": "string",
-              "description": "Categoría.",
+              "description": "Categoría oficial (briefing centralized-incident-manager).",
               "enum": [
                 "lost_parcel",
-                "delayed_delivery",
-                "wrong_address",
-                "return_request",
-                "damage"
+                "delivery_failure",
+                "inventory_discrepancy",
+                "carrier_issue",
+                "returns_issue",
+                "warehouse_incident",
+                "system_failure",
+                "client_complaint",
+                "other"
               ]
             },
             "branch": {
               "type": "string",
-              "description": "Sucursal.",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
-                "central"
+                "central",
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             },
             "origin": {
@@ -771,11 +1208,13 @@
             },
             "branch": {
               "type": "string",
-              "description": "Sucursal.",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
-                "central"
+                "central",
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             }
           }
@@ -852,12 +1291,13 @@
                 "string",
                 "null"
               ],
-              "description": "Sucursal si era válida.",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
                 "central",
-                null
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             }
           }
@@ -878,11 +1318,13 @@
           "properties": {
             "branch": {
               "type": "string",
-              "description": "Sucursal.",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
-                "central"
+                "central",
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             },
             "open_count": {
@@ -941,12 +1383,13 @@
                 "string",
                 "null"
               ],
-              "description": "Filtro de sucursal.",
+              "description": "Sede oficial (briefing centralized-incident-manager).",
               "enum": [
-                "los_angeles",
-                "zaragoza",
                 "central",
-                null
+                "la_warehouse",
+                "la_office",
+                "zaragoza_warehouse",
+                "zaragoza_office"
               ]
             },
             "result_count": {
@@ -1613,14 +2056,95 @@
     }
   },
   "x-trackflow-events": {
+    "inbound_order_created": {
+      "category": "business_inventory",
+      "classification": "mandatory",
+      "brief_reference": "docs/briefings/06-telemetry.es.md §3",
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "order_id",
+        "warehouse",
+        "client_id",
+        "product_id",
+        "product_category",
+        "quantity",
+        "stock_after"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "outbound_order_created": {
+      "category": "business_inventory",
+      "classification": "mandatory",
+      "brief_reference": "docs/briefings/06-telemetry.es.md §3",
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "order_id",
+        "warehouse",
+        "client_id",
+        "product_id",
+        "product_category",
+        "quantity",
+        "exit_type",
+        "stock_after"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "stock_threshold_triggered": {
+      "category": "business_inventory",
+      "classification": "mandatory",
+      "brief_reference": "docs/briefings/06-telemetry.es.md §3",
+      "delivery": "stream",
+      "pii_handling": "none",
+      "allowlist": [
+        "warehouse",
+        "client_id",
+        "product_id",
+        "product_category",
+        "quantity",
+        "min_threshold"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "direct_stock_edit_rejected": {
+      "category": "business_inventory",
+      "classification": "mandatory",
+      "brief_reference": "docs/briefings/06-telemetry.es.md §3",
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "warehouse",
+        "client_id",
+        "product_id",
+        "product_category",
+        "quantity",
+        "attempted_route",
+        "actor_role"
+      ],
+      "schemaVersion": "1.0.0"
+    },
+    "inventory_discrepancy_detected": {
+      "category": "business_inventory",
+      "classification": "mandatory",
+      "brief_reference": "docs/briefings/06-telemetry.es.md §3",
+      "delivery": "batch",
+      "pii_handling": "none",
+      "allowlist": [
+        "warehouse",
+        "client_id",
+        "product_id",
+        "product_category",
+        "quantity",
+        "system_stock",
+        "counted_stock",
+        "detection_source"
+      ],
+      "schemaVersion": "1.0.0"
+    },
     "lead_form_submitted": {
       "category": "business_onboarding",
-      "classification": "mandatory",
-      "brief_metrics": [
-        "MM-1",
-        "MM-2",
-        "MM-4"
-      ],
+      "classification": "opportunity",
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1628,18 +2152,16 @@
         "invalid_fields",
         "country",
         "monthly_volume",
-        "segment",
+        "product_type",
+        "services",
+        "current_3pl",
         "attempt_number"
       ],
       "schemaVersion": "1.0.0"
     },
     "lead_status_changed": {
       "category": "business_onboarding",
-      "classification": "mandatory",
-      "brief_metrics": [
-        "MM-1",
-        "MM-3"
-      ],
+      "classification": "opportunity",
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1647,18 +2169,15 @@
         "from_status",
         "to_status",
         "country",
-        "segment",
         "lead_created_at",
-        "actor_role"
+        "actor_role",
+        "monthly_volume"
       ],
       "schemaVersion": "1.0.0"
     },
     "incident_created": {
       "category": "business_incidents",
-      "classification": "mandatory",
-      "brief_metrics": [
-        "MM-5"
-      ],
+      "classification": "opportunity",
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1673,10 +2192,7 @@
     },
     "incident_status_changed": {
       "category": "business_incidents",
-      "classification": "mandatory",
-      "brief_metrics": [
-        "MM-6"
-      ],
+      "classification": "opportunity",
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1693,10 +2209,7 @@
     },
     "incident_status_change_rejected": {
       "category": "business_incidents",
-      "classification": "mandatory",
-      "brief_metrics": [
-        "MM-7"
-      ],
+      "classification": "opportunity",
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1711,7 +2224,6 @@
     "lead_form_started": {
       "category": "navigation",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1722,7 +2234,6 @@
     "incident_validation_failed": {
       "category": "errors",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1735,7 +2246,6 @@
     "incident_backlog_threshold_triggered": {
       "category": "business_incidents",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "stream",
       "pii_handling": "none",
       "allowlist": [
@@ -1748,7 +2258,6 @@
     "incident_list_filtered": {
       "category": "navigation",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1762,7 +2271,6 @@
     "supplier_created": {
       "category": "business_suppliers",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1776,7 +2284,6 @@
     "supplier_rate_updated": {
       "category": "business_suppliers",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1791,7 +2298,6 @@
     "supplier_status_changed": {
       "category": "business_suppliers",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1805,7 +2311,6 @@
     "csv_analysis_completed": {
       "category": "business_incidents",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1819,7 +2324,6 @@
     "csv_results_exported": {
       "category": "business_incidents",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1830,7 +2334,6 @@
     "auth_login_succeeded": {
       "category": "authentication",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1842,7 +2345,6 @@
     "auth_login_failed": {
       "category": "authentication",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "stream",
       "pii_handling": "pseudonymized",
       "allowlist": [
@@ -1855,7 +2357,6 @@
     "session_expired": {
       "category": "authentication",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1867,7 +2368,6 @@
     "user_registered": {
       "category": "authentication",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1879,7 +2379,6 @@
     "page_viewed": {
       "category": "navigation",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1892,7 +2391,6 @@
     "ui_error_displayed": {
       "category": "errors",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1906,7 +2404,6 @@
     "ui_error_retry_clicked": {
       "category": "errors",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1919,7 +2416,6 @@
     "frontend_error_uncaught": {
       "category": "errors",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "stream",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1934,7 +2430,6 @@
     "api_error_occurred": {
       "category": "errors",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "stream",
       "pii_handling": "excluded",
       "allowlist": [
@@ -1948,7 +2443,6 @@
     "api_request_completed": {
       "category": "performance",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
@@ -1964,7 +2458,6 @@
     "web_vitals_reported": {
       "category": "performance",
       "classification": "opportunity",
-      "brief_metrics": [],
       "delivery": "batch",
       "pii_handling": "none",
       "allowlist": [
