@@ -21,7 +21,7 @@ This repository is the **starter template** for transversal projects. You will w
 
 ## Current project status
 
-The project is configured for TrackFlow, a last-mile logistics and warehouse operations company serving Mexico and Spain.
+The project is configured for TrackFlow, a last-mile delivery and warehouse management company operating in the United States and Spain (warehouses in Los Angeles and Zaragoza). Official briefings live in `docs/briefings/`, indexed in `company-BRIEFING.md`.
 
 - `CONTEXT.md` is the business source of truth.
 - `AGENTS.md` and `memory-bank/` define the operating context for coding agents.

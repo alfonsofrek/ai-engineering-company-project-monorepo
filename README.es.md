@@ -21,7 +21,7 @@ Este repositorio es la **plantilla de inicio** para los proyectos transversales.
 
 ## Estado actual del proyecto
 
-El proyecto esta configurado para TrackFlow, empresa de logistica de ultima milla y operaciones de almacen en Mexico y Espana.
+El proyecto está configurado para TrackFlow, empresa de última milla y gestión de almacenes que opera en Estados Unidos y España (almacenes en Los Ángeles y Zaragoza). Los briefings oficiales están en `docs/briefings/`, indexados en `company-BRIEFING.md`.
 
 - `CONTEXT.md` contiene la fuente de verdad del negocio.
 - `AGENTS.md` y `memory-bank/` definen el contexto operativo para agentes.
