@@ -1,78 +1,30 @@
-export type EqualityFn<T> = (left: T, right: T) => boolean;
-export type CompareFn<T> = (left: T, right: T) => number;
+import type { Product, Shipment } from "../types/models";
 
-export function linearSearch<T>(
-  items: readonly T[],
-  target: T,
-  equals: EqualityFn<T> = (left, right) => left === right,
-): number {
-  for (let index = 0; index < items.length; index += 1) {
-    if (equals(items[index], target)) {
-      return index;
-    }
+export function findProductBySKU(products: Product[], sku: string): Product | null {
+  const target = sku.trim().toLowerCase();
+  for (const product of products) {
+    if (product.sku.toLowerCase() === target) return product;
   }
-
-  return -1;
+  return null;
 }
 
-export function linearSearchBy<T>(items: readonly T[], predicate: (item: T) => boolean): number {
-  for (let index = 0; index < items.length; index += 1) {
-    if (predicate(items[index])) {
-      return index;
-    }
+export function findShipmentById(shipments: Shipment[], id: string): Shipment | null {
+  for (const shipment of shipments) {
+    if (shipment.id === id) return shipment;
   }
-
-  return -1;
+  return null;
 }
 
-export function binarySearch<T>(items: readonly T[], target: T, compare: CompareFn<T>): number {
-  let left = 0;
-  let right = items.length - 1;
-
-  while (left <= right) {
-    const middle = left + Math.floor((right - left) / 2);
-    const comparison = compare(items[middle], target);
-
-    if (comparison === 0) {
-      return middle;
-    }
-
-    if (comparison < 0) {
-      left = middle + 1;
-      continue;
-    }
-
-    right = middle - 1;
+/** `sortedProducts` must be sorted by weightKg ascending. Returns the index, or -1. */
+export function binarySearchProductByWeight(sortedProducts: Product[], targetWeight: number): number {
+  let low = 0;
+  let high = sortedProducts.length - 1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const weight = sortedProducts[middle].weightKg;
+    if (weight === targetWeight) return middle;
+    if (weight < targetWeight) low = middle + 1;
+    else high = middle - 1;
   }
-
-  return -1;
-}
-
-export function binarySearchByKey<T, K>(
-  items: readonly T[],
-  targetValue: K,
-  getComparableValue: (item: T) => K,
-  compareValues: CompareFn<K>,
-): number {
-  let left = 0;
-  let right = items.length - 1;
-
-  while (left <= right) {
-    const middle = left + Math.floor((right - left) / 2);
-    const middleValue = getComparableValue(items[middle]);
-    const comparison = compareValues(middleValue, targetValue);
-
-    if (comparison === 0) {
-      return middle;
-    }
-
-    if (comparison < 0) {
-      left = middle + 1;
-      continue;
-    }
-
-    right = middle - 1;
-  }
-
   return -1;
 }

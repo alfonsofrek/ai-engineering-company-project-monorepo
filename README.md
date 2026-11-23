@@ -9,6 +9,24 @@ _Base template for transversal projects in the AI Engineering Career Program —
 
 ---
 
+## Milestone 2 — coding fundamentals (TypeScript)
+
+Entities and functions from the official briefing (`Product`, `Shipment`, `Carrier`, `InventoryMovement`):
+
+- `src/types/models.ts` — interfaces and types
+- `src/utils/collections.ts` — filtering and sorting (no mutation)
+- `src/utils/search.ts` — linear search by SKU/ID, binary search by weight
+- `src/utils/transformations.ts` — shipping cost, carrier scoring, best carrier, reports
+- `src/utils/validations.ts` — business rules
+- `src/data/sampleData.ts` — sample data from the briefing
+
+```bash
+npm install
+npm run typecheck   # npx tsc --noEmit
+npm test            # node:test via tsx
+npm run demo        # prints scores, costs and the selected carrier
+```
+
 ## Purpose
 
 This repository is the **starter template** for transversal projects. You will work on real company scenarios (Brasaland, TrackFlow, Nexova), building deliverables that map to course milestones (Web, Programming, Backend, Telemetry, RAG, Agents, Workflows, Real-time).

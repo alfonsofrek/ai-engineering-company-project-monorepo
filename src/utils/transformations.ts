@@ -1,111 +1,96 @@
 import {
-  Country,
-  CountryVolumeSummary,
-  OnboardingLead,
-  OnboardingTimeline,
-  getAccountSegment,
+  PRODUCT_CATEGORIES,
+  SHIPMENT_STATUSES,
+  type Carrier,
+  type CarrierSelection,
+  type CarrierUsage,
+  type Product,
+  type ProductCategory,
+  type Shipment,
+  type ShipmentPriority,
+  type ShipmentStatus,
 } from "../types/models";
 
-export function countByCategory<T, K>(
-  items: readonly T[],
-  getCategory: (item: T) => K,
-): Map<K, number> {
-  return items.reduce((accumulator, currentItem) => {
-    const category = getCategory(currentItem);
-    const currentCount = accumulator.get(category) ?? 0;
-    accumulator.set(category, currentCount + 1);
-    return accumulator;
-  }, new Map<K, number>());
+const PRIORITY_SURCHARGE: Record<ShipmentPriority, number> = { Standard: 0, Express: 0.3, "Same-day": 0.6 };
+const MIN_SUITABLE_SCORE = 50;
+
+function roundToCents(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
-export function sumBy<T>(items: readonly T[], getValue: (item: T) => number): number {
-  return items.reduce((total, currentItem) => total + getValue(currentItem), 0);
+// --- Carrier scoring and shipping cost ---
+
+export function calculateShippingCost(shipment: Shipment, product: Product, carrier: Carrier): number {
+  const weightCost = product.weightKg * carrier.ratePerKgUSD * shipment.quantity;
+  const distanceCost = shipment.destination.distanceKm * carrier.ratePerKmUSD;
+  const subtotal = carrier.baseRateUSD + weightCost + distanceCost;
+  return roundToCents(subtotal * (1 + PRIORITY_SURCHARGE[shipment.priority]));
 }
 
-export function averageBy<T>(items: readonly T[], getValue: (item: T) => number): number | null {
-  if (items.length === 0) {
-    return null;
+export function scoreCarrierForShipment(carrier: Carrier, shipment: Shipment, product: Product): number {
+  const countryPoints = carrier.operatesIn.includes(shipment.destination.country) ? 20 : 0;
+  const weightPoints = product.weightKg * shipment.quantity <= carrier.maxWeightKg ? 20 : 0;
+  const priorityPoints = carrier.acceptsPriority.includes(shipment.priority) ? 15 : 0;
+  const fragilePoints = !product.isFragile || carrier.handlesFragile ? 15 : 0;
+  const reliabilityPoints = carrier.onTimeRate * 0.3;
+  return roundToCents(countryPoints + weightPoints + priorityPoints + fragilePoints + reliabilityPoints);
+}
+
+export function selectBestCarrier(carriers: Carrier[], shipment: Shipment, product: Product): CarrierSelection | null {
+  let best: CarrierSelection | null = null;
+  for (const carrier of carriers) {
+    const score = scoreCarrierForShipment(carrier, shipment, product);
+    if (score < MIN_SUITABLE_SCORE) continue;
+    const cost = calculateShippingCost(shipment, product, carrier);
+    if (best === null || cost < best.cost) best = { carrier, score, cost };
   }
-
-  return sumBy(items, getValue) / items.length;
+  return best;
 }
 
-export function maxBy<T>(items: readonly T[], getValue: (item: T) => number): T | null {
-  if (items.length === 0) {
-    return null;
+// --- Aggregations and reports ---
+
+export function countProductsByCategory(products: Product[]): Record<ProductCategory, number> {
+  const counts = Object.fromEntries(PRODUCT_CATEGORIES.map((category) => [category, 0])) as Record<ProductCategory, number>;
+  for (const product of products) counts[product.category] += 1;
+  return counts;
+}
+
+export function calculateTotalInventoryValue(products: Product[]): number {
+  return roundToCents(products.reduce((total, product) => total + product.stockQuantity * product.unitCostUSD, 0));
+}
+
+export function calculateAverageShipmentDistance(shipments: Shipment[]): number {
+  if (shipments.length === 0) return 0;
+  const totalKm = shipments.reduce((total, shipment) => total + shipment.destination.distanceKm, 0);
+  return roundToCents(totalKm / shipments.length);
+}
+
+export function groupShipmentsByStatus(shipments: Shipment[]): Record<ShipmentStatus, Shipment[]> {
+  const groups = Object.fromEntries(SHIPMENT_STATUSES.map((status) => [status, [] as Shipment[]])) as Record<ShipmentStatus, Shipment[]>;
+  for (const shipment of shipments) groups[shipment.status].push(shipment);
+  return groups;
+}
+
+export function findTopCarriers(shipments: Shipment[], topN: number): CarrierUsage[] {
+  if (topN <= 0) return [];
+  const usage = new Map<string, number>();
+  for (const shipment of shipments) {
+    if (shipment.carrier !== null) usage.set(shipment.carrier, (usage.get(shipment.carrier) ?? 0) + 1);
   }
-
-  return items.reduce((maxItem, currentItem) => {
-    return getValue(currentItem) > getValue(maxItem) ? currentItem : maxItem;
-  });
+  return [...usage.entries()]
+    .map(([carrier, count]) => ({ carrier, count }))
+    .sort((a, b) => b.count - a.count || a.carrier.localeCompare(b.carrier))
+    .slice(0, topN);
 }
 
-export function minBy<T>(items: readonly T[], getValue: (item: T) => number): T | null {
-  if (items.length === 0) {
-    return null;
+/** Extreme values for the warehouse report; null when the list is empty. */
+export function findMostAndLeastStockedProducts(products: Product[]): { most: Product; least: Product } | null {
+  if (products.length === 0) return null;
+  let most = products[0];
+  let least = products[0];
+  for (const product of products) {
+    if (product.stockQuantity > most.stockQuantity) most = product;
+    if (product.stockQuantity < least.stockQuantity) least = product;
   }
-
-  return items.reduce((minItem, currentItem) => {
-    return getValue(currentItem) < getValue(minItem) ? currentItem : minItem;
-  });
-}
-
-export function countLeadsBySegment(leads: readonly OnboardingLead[]): Record<string, number> {
-  return leads.reduce<Record<string, number>>((accumulator, lead) => {
-    const segment = getAccountSegment(lead.monthlyVolume);
-    const currentCount = accumulator[segment] ?? 0;
-    return {
-      ...accumulator,
-      [segment]: currentCount + 1,
-    };
-  }, {});
-}
-
-export function monthlyVolumeForecastByCountry(
-  leads: readonly OnboardingLead[],
-): Record<Country, number> {
-  const initial: Record<Country, number> = {
-    Mexico: 0,
-    Espana: 0,
-  };
-
-  return leads.reduce((accumulator, lead) => {
-    return {
-      ...accumulator,
-      [lead.country]: accumulator[lead.country] + lead.monthlyVolume,
-    };
-  }, initial);
-}
-
-export function buildCountryVolumeSummary(
-  leads: readonly OnboardingLead[],
-): CountryVolumeSummary[] {
-  const forecast = monthlyVolumeForecastByCountry(leads);
-  const groupedByCountry = countByCategory(leads, (lead) => lead.country);
-
-  return (Object.keys(forecast) as Country[]).map((country) => {
-    const totalLeads = groupedByCountry.get(country) ?? 0;
-    const totalMonthlyVolume = forecast[country];
-    const averageMonthlyVolume = totalLeads === 0 ? 0 : totalMonthlyVolume / totalLeads;
-
-    return {
-      country,
-      totalLeads,
-      totalMonthlyVolume,
-      averageMonthlyVolume,
-    };
-  });
-}
-
-export function averageOnboardingTimeInHours(timelines: readonly OnboardingTimeline[]): number | null {
-  if (timelines.length === 0) {
-    return null;
-  }
-
-  const milliseconds = sumBy(
-    timelines,
-    (timeline) => timeline.activatedAt.getTime() - timeline.registeredAt.getTime(),
-  );
-
-  return milliseconds / timelines.length / (1000 * 60 * 60);
+  return { most, least };
 }

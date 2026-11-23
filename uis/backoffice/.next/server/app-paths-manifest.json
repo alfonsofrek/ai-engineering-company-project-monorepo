@@ -1,0 +1,20 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/account/change-password/page": "app/account/change-password/page.js",
+  "/account/profile/page": "app/account/profile/page.js",
+  "/forgot-password/page": "app/forgot-password/page.js",
+  "/icon.svg/route": "app/icon.svg/route.js",
+  "/incidents-analysis/page": "app/incidents-analysis/page.js",
+  "/incidents/new/page": "app/incidents/new/page.js",
+  "/incidents/page": "app/incidents/page.js",
+  "/inventory/orders/inbound/page": "app/inventory/orders/inbound/page.js",
+  "/inventory/orders/outbound/page": "app/inventory/orders/outbound/page.js",
+  "/inventory/orders/page": "app/inventory/orders/page.js",
+  "/inventory/products/page": "app/inventory/products/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/register/page": "app/register/page.js",
+  "/reset-password/page": "app/reset-password/page.js",
+  "/suppliers/page": "app/suppliers/page.js"
+}
