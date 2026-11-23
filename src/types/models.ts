@@ -1,50 +1,94 @@
-export type Country = "Mexico" | "Espana";
+// TrackFlow domain entities, exactly as defined in the Milestone 2 briefing.
 
-export type AccountSegment = "Small" | "Mid-market" | "Enterprise";
+export type ProductCategory = "Fashion" | "Electronics" | "Cosmetics" | "Home" | "Other";
+export type WarehouseLocation = "Los Angeles" | "Zaragoza";
+export type ProductStatus = "Active" | "Low stock" | "Out of stock" | "Discontinued";
 
-export interface OnboardingLead {
-  fullName: string;
-  companyName: string;
-  email: string;
+export interface Dimensions {
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
+}
+
+export interface Product {
+  sku: string;
+  name: string;
+  category: ProductCategory;
+  weightKg: number;
+  dimensions: Dimensions;
+  warehouse: WarehouseLocation;
+  stockQuantity: number;
+  minStockThreshold: number;
+  unitCostUSD: number;
+  isFragile: boolean;
+  status: ProductStatus;
+}
+
+export type Country = "United States" | "Spain";
+export type ShipmentPriority = "Standard" | "Express" | "Same-day";
+export type ShipmentStatus = "Pending" | "Assigned" | "In transit" | "Delivered" | "Failed";
+
+export interface Destination {
+  city: string;
   country: Country;
-  phone: string;
-  monthlyVolume: number;
+  postalCode: string;
+  distanceKm: number;
 }
 
-export interface OnboardingTimeline {
-  registeredAt: Date;
-  activatedAt: Date;
+export interface Shipment {
+  id: string;
+  sku: string;
+  quantity: number;
+  origin: WarehouseLocation;
+  destination: Destination;
+  priority: ShipmentPriority;
+  declaredValueUSD: number;
+  carrier: string | null;
+  status: ShipmentStatus;
+  createdAt: Date;
 }
 
-export interface ValidationError {
-  field: keyof OnboardingLead | "general";
-  message: string;
+export interface Carrier {
+  id: string;
+  name: string;
+  operatesIn: Country[];
+  baseRateUSD: number;
+  ratePerKgUSD: number;
+  ratePerKmUSD: number;
+  avgDeliveryDays: number;
+  onTimeRate: number;
+  maxWeightKg: number;
+  handlesFragile: boolean;
+  acceptsPriority: ShipmentPriority[];
+}
+
+export type MovementType = "Inbound" | "Outbound" | "Transfer" | "Adjustment";
+
+export interface InventoryMovement {
+  id: string;
+  sku: string;
+  warehouse: WarehouseLocation;
+  type: MovementType;
+  quantity: number;
+  reason: string;
+  timestamp: Date;
 }
 
 export interface ValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
+  valid: boolean;
+  errors: string[];
 }
 
-export interface CountryVolumeSummary {
-  country: Country;
-  totalMonthlyVolume: number;
-  totalLeads: number;
-  averageMonthlyVolume: number;
+export interface CarrierSelection {
+  carrier: Carrier;
+  score: number;
+  cost: number;
 }
 
-export function getAccountSegment(monthlyVolume: number): AccountSegment {
-  if (monthlyVolume >= 5000) {
-    return "Enterprise";
-  }
-
-  if (monthlyVolume >= 500) {
-    return "Mid-market";
-  }
-
-  return "Small";
+export interface CarrierUsage {
+  carrier: string;
+  count: number;
 }
 
-export function createOnboardingLead(data: OnboardingLead): OnboardingLead {
-  return { ...data };
-}
+export const PRODUCT_CATEGORIES: readonly ProductCategory[] = ["Fashion", "Electronics", "Cosmetics", "Home", "Other"];
+export const SHIPMENT_STATUSES: readonly ShipmentStatus[] = ["Pending", "Assigned", "In transit", "Delivered", "Failed"];

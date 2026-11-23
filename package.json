@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "demo": "tsx src/demo.ts"
+    "demo": "tsx src/demo.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "devDependencies": {
     "tsx": "^4.20.3",

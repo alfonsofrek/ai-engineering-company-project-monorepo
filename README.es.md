@@ -9,6 +9,24 @@ _Las instrucciones están [disponibles en inglés](./README.md)._
 
 ---
 
+## Hito 2 — fundamentos de programación (TypeScript)
+
+Entidades y funciones del briefing oficial (`Product`, `Shipment`, `Carrier`, `InventoryMovement`):
+
+- `src/types/models.ts` — interfaces y tipos
+- `src/utils/collections.ts` — filtrado y ordenación (sin mutar)
+- `src/utils/search.ts` — búsqueda lineal por SKU/ID y binaria por peso
+- `src/utils/transformations.ts` — coste de envío, scoring de transportistas, mejor transportista e informes
+- `src/utils/validations.ts` — reglas de negocio
+- `src/data/sampleData.ts` — datos de ejemplo del briefing
+
+```bash
+npm install
+npm run typecheck   # npx tsc --noEmit
+npm test            # node:test con tsx
+npm run demo        # muestra puntuaciones, costes y el transportista elegido
+```
+
 ## Propósito
 
 Este repositorio es la **plantilla de inicio** para los proyectos transversales. Trabajarás con escenarios de empresas reales (Brasaland, TrackFlow, Nexova) construyendo entregables que se corresponden con los hitos del curso (Web, Programación, Backend, Telemetría, RAG, Agentes, Workflows, Tiempo real).

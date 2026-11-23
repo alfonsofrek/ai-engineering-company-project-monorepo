@@ -1,68 +1,24 @@
+import { sampleCarriers, sampleProducts, sampleShipment } from "./data/sampleData";
 import {
-  OnboardingLead,
-  binarySearchByKey,
-  buildCountryVolumeSummary,
-  countLeadsBySegment,
-  filterByCriteria,
-  linearSearchBy,
-  monthlyVolumeForecastByCountry,
-  sortByKey,
-  validateOnboardingLead,
+  calculateShippingCost,
+  calculateTotalInventoryValue,
+  countProductsByCategory,
+  filterLowStockProducts,
+  findProductBySKU,
+  scoreCarrierForShipment,
+  selectBestCarrier,
+  validateShipment,
 } from "./index";
 
-const leads: OnboardingLead[] = [
-  {
-    fullName: "Ana Gomez",
-    companyName: "Mercado Rayo",
-    email: "ana@mercadorayo.com",
-    country: "Mexico",
-    phone: "+525512345678",
-    monthlyVolume: 320,
-  },
-  {
-    fullName: "Carlos Ruiz",
-    companyName: "Envios Atlas",
-    email: "carlos@atlas.es",
-    country: "Espana",
-    phone: "+34612345678",
-    monthlyVolume: 5200,
-  },
-  {
-    fullName: "Lucia Ortega",
-    companyName: "Distribuciones Norte",
-    email: "lucia@norte.mx",
-    country: "Mexico",
-    phone: "+525598887766",
-    monthlyVolume: 1400,
-  },
-];
+const product = findProductBySKU(sampleProducts, sampleShipment.sku);
+if (product === null) throw new Error(`Unknown SKU ${sampleShipment.sku}`);
 
-const validationResults = leads.map((lead) => ({
-  companyName: lead.companyName,
-  result: validateOnboardingLead(lead),
-}));
-
-const mexicoLeads = filterByCriteria(leads, { country: "Mexico" });
-const sortedByVolume = sortByKey(leads, "monthlyVolume", "asc");
-const sortedByCompanyName = sortByKey(leads, "companyName", "asc");
-const luciaIndex = linearSearchBy(leads, (lead) => lead.fullName === "Lucia Ortega");
-const atlasIndexInSorted = binarySearchByKey(
-  sortedByCompanyName,
-  "Envios Atlas",
-  (lead) => lead.companyName,
-  (left, right) => left.localeCompare(right),
-);
-
-const forecast = monthlyVolumeForecastByCountry(leads);
-const summary = buildCountryVolumeSummary(leads);
-const segmentCounts = countLeadsBySegment(leads);
-
-console.log("Validation:", validationResults);
-console.log("Mexico leads:", mexicoLeads);
-console.log("Sorted by monthlyVolume:", sortedByVolume);
-console.log("Sorted by companyName:", sortedByCompanyName);
-console.log("Lucia index in original array:", luciaIndex);
-console.log("Envios Atlas index in sorted array:", atlasIndexInSorted);
-console.log("Forecast by country:", forecast);
-console.log("Country summary:", summary);
-console.log("Leads by segment:", segmentCounts);
+console.log("Low stock:", filterLowStockProducts(sampleProducts).map((item) => item.sku));
+console.log("Products by category:", countProductsByCategory(sampleProducts));
+console.log("Total inventory value (USD):", calculateTotalInventoryValue(sampleProducts));
+console.log("Shipment validation:", validateShipment(sampleShipment));
+for (const carrier of sampleCarriers) {
+  console.log(`${carrier.name}: score ${scoreCarrierForShipment(carrier, sampleShipment, product)}, cost ${calculateShippingCost(sampleShipment, product, carrier)}`);
+}
+const best = selectBestCarrier(sampleCarriers, sampleShipment, product);
+console.log("Best carrier:", best ? `${best.carrier.name} (score ${best.score}, cost ${best.cost} USD)` : "none");
